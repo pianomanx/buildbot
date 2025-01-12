@@ -1,4 +1,3 @@
-# coding=utf-8
 # This file is part of Buildbot.  Buildbot is free software: you can
 # redistribute it and/or modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation, version 2.
@@ -72,9 +71,4 @@ def bytes2unicode(x, encoding='utf-8', errors='strict'):
     return str(x, encoding, errors)
 
 
-__all__ = [
-    "NativeStringIO",
-    "bytes2NativeString",
-    "bytes2unicode",
-    "unicode2bytes"
-]
+__all__ = ["NativeStringIO", "bytes2NativeString", "bytes2unicode", "unicode2bytes"]

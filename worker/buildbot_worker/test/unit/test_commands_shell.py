@@ -24,18 +24,15 @@ from buildbot_worker.test.util.command import CommandTestMixin
 
 
 class TestWorkerShellCommand(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_simple(self):
         workdir = os.path.join(self.basedir, 'workdir')
-        self.make_command(shell.WorkerShellCommand, {'command': ['echo', 'hello'],
-                                                     'workdir': workdir})
+        self.make_command(
+            shell.WorkerShellCommand, {'command': ['echo', 'hello'], 'workdir': workdir}
+        )
 
         self.patch_runprocess(
             Expect(['echo', 'hello'], self.basedir_workdir)
@@ -49,7 +46,7 @@ class TestWorkerShellCommand(CommandTestMixin, unittest.TestCase):
 
         # note that WorkerShellCommand does not add any extra updates of it own
         self.assertUpdates(
-            [('header', 'headers'), ('stdout', 'hello\n'), ('rc', 0)],
-            self.protocol_command.show())
+            [('header', 'headers'), ('stdout', 'hello\n'), ('rc', 0)], self.protocol_command.show()
+        )
 
     # TODO: test all functionality that WorkerShellCommand adds atop RunProcess

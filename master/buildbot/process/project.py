@@ -13,6 +13,8 @@
 #
 # Copyright Buildbot Team Members
 
+from typing import ClassVar
+from typing import Sequence
 
 from buildbot import util
 from buildbot.config.checks import check_markdown_support
@@ -22,8 +24,7 @@ from buildbot.config.errors import error
 
 
 class Project(util.ComparableMixin):
-
-    compare_attrs = (
+    compare_attrs: ClassVar[Sequence[str]] = (
         "name",
         "slug",
         "description",
@@ -37,8 +38,9 @@ class Project(util.ComparableMixin):
         self.name = check_param_str(name, self.__class__, "name")
         self.slug = check_param_str(slug, self.__class__, "slug")
         self.description = check_param_str_none(description, self.__class__, "description")
-        self.description_format = \
-            check_param_str_none(description_format, self.__class__, "description_format")
+        self.description_format = check_param_str_none(
+            description_format, self.__class__, "description_format"
+        )
         if self.description_format is None:
             pass
         elif self.description_format == "markdown":

@@ -14,6 +14,8 @@
 # Copyright Buildbot Team Members
 
 import abc
+from typing import ClassVar
+from typing import Sequence
 
 from twisted.internet import defer
 from twisted.python import log
@@ -30,7 +32,7 @@ class ReporterBase(service.BuildbotService):
     name = None
     __meta__ = abc.ABCMeta
 
-    compare_attrs = ['generators']
+    compare_attrs: ClassVar[Sequence[str]] = ['generators']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,8 +69,9 @@ class ReporterBase(service.BuildbotService):
         # Add consumers for new keys
         for key in sorted(list(wanted_event_keys)):
             if key not in self._event_consumers:
-                self._event_consumers[key] = \
-                    yield self.master.mq.startConsuming(self._got_event, key)
+                self._event_consumers[key] = yield self.master.mq.startConsuming(
+                    self._got_event, key
+                )
 
     @defer.inlineCallbacks
     def stopService(self):
@@ -76,8 +79,7 @@ class ReporterBase(service.BuildbotService):
             yield consumer.stopConsuming()
         self._event_consumers = {}
 
-        for pending_call in list(self._pending_got_event_calls.values()):
-            yield pending_call
+        yield from list(self._pending_got_event_calls.values())
         self._pending_got_event_calls = {}
 
         yield super().stopService()
@@ -109,9 +111,16 @@ class ReporterBase(service.BuildbotService):
             reports = []
             for g in self.generators:
                 if self._does_generator_want_key(g, key):
-                    report = yield g.generate(self.master, self, key, msg)
-                    if report is not None:
-                        reports.append(report)
+                    try:
+                        report = yield g.generate(self.master, self, key, msg)
+                        if report is not None:
+                            reports.append(report)
+                    except Exception as e:
+                        log.err(
+                            e,
+                            "Got exception when handling reporter events: "
+                            f"key: {key} generator: {g}",
+                        )
 
             if reports:
                 yield self.sendMessage(reports)

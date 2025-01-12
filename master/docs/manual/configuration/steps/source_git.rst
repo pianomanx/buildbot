@@ -25,7 +25,10 @@ The Git step takes the following arguments:
 ``repourl`` (required)
    The URL of the upstream Git repository.
 
-``branch`` (optional)
+``port`` (optional, default: ``22``)
+   The SSH port of the Git server.
+
+``branch`` (optional, default: ``HEAD``)
    This specifies the name of the branch or the tag to use when a Build does not provide one of its own.
    If this parameter is not specified, and the Build does not provide a branch, the default branch of the remote repository will be used.
    If ``alwaysUseLatest`` is ``True`` then the branch and revision information that comes with the Build is ignored and the branch specified in this parameter is used.
@@ -121,6 +124,7 @@ The Git step takes the following arguments:
       * ``debug``: `--debug`
       * ``long``: `--long``
       * ``exact-match``: `--exact-match`
+      * ``first-parent``: `--first-parent`
       * ``tags``: `--tags`
       * ``dirty``: `--dirty`
 
@@ -128,6 +132,7 @@ The Git step takes the following arguments:
      Examples show the key-value pair:
 
       * ``match=foo``: `--match foo`
+      * ``exclude=foo``: `--exclude foo`
       * ``abbrev=7``: `--abbrev=7`
       * ``candidates=7``: `--candidates=7`
       * ``dirty=foo``: `--dirty=foo`
@@ -152,3 +157,13 @@ The Git step takes the following arguments:
    This may be either a :ref:`Secret` or just a string.
    `sshPrivateKey` must be specified in order to use this option.
    `sshHostKey` must not be specified in order to use this option.
+
+``auth_credentials``
+
+   (optional) An username/password tuple to use when running git for fetch operations.
+   The worker's git version needs to be at least 1.7.9.
+
+``git_credentials``
+
+   (optional) See :ref:`GitCredentialOptions`.
+   The worker's git version needs to be at least 1.7.9.

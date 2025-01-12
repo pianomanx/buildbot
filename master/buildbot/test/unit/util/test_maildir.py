@@ -24,7 +24,6 @@ from buildbot.util import maildir
 
 
 class TestMaildirService(dirs.DirsMixin, unittest.TestCase):
-
     def setUp(self):
         self.maildir = os.path.abspath("maildir")
         self.newdir = os.path.join(self.maildir, "new")
@@ -37,7 +36,6 @@ class TestMaildirService(dirs.DirsMixin, unittest.TestCase):
     def tearDown(self):
         if self.svc and self.svc.running:
             self.svc.stopService()
-        self.tearDownDirs()
 
     # tests
 
@@ -60,6 +58,7 @@ class TestMaildirService(dirs.DirsMixin, unittest.TestCase):
         def messageReceived(filename):
             messagesReceived.append(filename)
             return defer.succeed(None)
+
         self.svc.messageReceived = messageReceived
         yield self.svc.startService()
 
@@ -85,6 +84,10 @@ class TestMaildirService(dirs.DirsMixin, unittest.TestCase):
         os.rename(tmpfile, newfile)
         f = self.svc.moveToCurDir("newmsg")
         f.close()
-        self.assertEqual([os.path.exists(os.path.join(d, "newmsg"))
-                          for d in (self.newdir, self.curdir, self.tmpdir)],
-                         [False, True, False])
+        self.assertEqual(
+            [
+                os.path.exists(os.path.join(d, "newmsg"))
+                for d in (self.newdir, self.curdir, self.tmpdir)
+            ],
+            [False, True, False],
+        )

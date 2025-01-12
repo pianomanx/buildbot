@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Buildbot documentation build configuration file, created by
 # sphinx-quickstart on Tue Aug 10 15:13:31 2010.
@@ -26,8 +25,7 @@ try:
     from buildbot.reporters.telegram import TelegramContact
     from buildbot.util.raml import RamlSpec
 except ImportError:
-    sys.path.insert(2, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                    os.pardir))
+    sys.path.insert(2, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
     from buildbot.reporters.telegram import TelegramContact
     from buildbot.util.raml import RamlSpec
 
@@ -35,9 +33,11 @@ except ImportError:
 try:
     importlib.metadata.distribution('docutils')
 except importlib.metadata.PackageNotFoundError as e:
-    raise RuntimeError("docutils is not installed. "
-                       "Please install documentation dependencies with `pip "
-                       "install buildbot[docs]`") from e
+    raise RuntimeError(
+        "docutils is not installed. "
+        "Please install documentation dependencies with `pip "
+        "install buildbot[docs]`"
+    ) from e
 # If your documentation needs a minimal Sphinx version, state it here.
 needs_sphinx = '4.0'
 
@@ -94,7 +94,7 @@ if release == 'latest':
     rst_prolog += textwrap.dedent("""\
     .. caution:: This page documents the latest, unreleased version of
         Buildbot.  For documentation for released versions, see
-        http://docs.buildbot.net/current/.
+        https://docs.buildbot.net/current/.
 
     """)
 
@@ -152,7 +152,6 @@ extlinks = {
     # "pretty" reference that looks like relative path in Buildbot source tree
     # by default.
     'src': ('https://github.com/buildbot/buildbot/tree/master/%s', '%s'),
-    'contrib-src': ('https://github.com/buildbot/buildbot-contrib/tree/master/%s', '%s'),
 }
 
 # Sphinx' link checker.
@@ -189,9 +188,7 @@ html_theme = 'sphinx_rtd_theme'
 # html_theme_options = {'stickysidebar': 'true'}
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [
-    '_themes'
-]
+html_theme_path = ['_themes']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -222,9 +219,7 @@ html_css_files = ['buildbot_rtd.css']
 # html_last_updated_fmt = '%b %d, %Y'
 
 # Custom sidebar templates, maps document names to template names.
-html_sidebars = {
-    '**': ['searchbox.html', 'localtoc.html', 'relations.html', 'sourcelink.html']
-}
+html_sidebars = {'**': ['searchbox.html', 'localtoc.html', 'relations.html', 'sourcelink.html']}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -306,9 +301,7 @@ latex_show_urls = 'inline'
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    ('index', 'buildbot', 'Buildbot Documentation', ['Brian Warner'], 1)
-]
+man_pages = [('index', 'buildbot', 'Buildbot Documentation', ['Brian Warner'], 1)]
 
 jinja_contexts = {
     "data_api": {'raml': RamlSpec()},
@@ -329,12 +322,9 @@ for raml_typename, raml_type in sorted(raml_spec.types.items()):
 
 # Spell checker.
 try:
-    import enchant  # noqa # pylint: disable=unused-import
+    import enchant  # noqa: F401
 except ImportError as ex:
-    print("enchant module import failed:\n"
-          f"{ex}\n"
-          "Spell checking disabled.",
-          file=sys.stderr)
+    print(f"enchant module import failed:\n{ex}\nSpell checking disabled.", file=sys.stderr)
 
 else:
     extensions.append('sphinxcontrib.spelling')

@@ -17,10 +17,10 @@ import builtins
 import os
 import re
 import textwrap
+from importlib.util import find_spec
 from unittest import mock
 
 from parameterized import parameterized
-
 from twisted.internet import defer
 from twisted.trial import unittest
 from zope.interface import implementer
@@ -46,12 +46,14 @@ from buildbot.util import service
 from buildbot.warnings import ConfigWarning
 from buildbot.warnings import DeprecatedApiWarning
 
+HAS_ZSTD = find_spec('zstandard') is not None
+
 global_defaults = {
     "title": 'Buildbot',
-    "titleURL": 'http://buildbot.net',
+    "titleURL": 'http://buildbot.net/',
     "buildbotURL": 'http://localhost:8080/',
     "logCompressionLimit": 4096,
-    "logCompressionMethod": 'gz',
+    "logCompressionMethod": 'zstd' if HAS_ZSTD else 'gz',
     "logEncoding": 'utf-8',
     "logMaxTailSize": None,
     "logMaxSize": None,
@@ -64,40 +66,35 @@ global_defaults = {
     "manhole": None,
     # in unit tests we default to None, but normally defaults to 'basic'
     "buildbotNetUsageData": None,
-    "www":
-    {
+    "www": {
         "port": None,
         "plugins": {},
         "auth": {'name': 'NoAuth'},
         "authz": {},
         "avatar_methods": {'name': 'gravatar'},
-        "logfileName": 'http.log'
+        "logfileName": 'http.log',
     },
 }
 
 
 class FakeChangeSource(changes_base.ChangeSource):
-
     def __init__(self):
         super().__init__(name='FakeChangeSource')
 
 
 @implementer(interfaces.IScheduler)
 class FakeScheduler:
-
     def __init__(self, name):
         self.name = name
 
 
 class FakeBuilder:
-
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
 
 @implementer(interfaces.IWorker)
 class FakeWorker:
-
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
@@ -109,16 +106,12 @@ class FakeMachine:
 
 
 class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousTestCase):
-
     def setUp(self):
         self.basedir = os.path.abspath('basedir')
         self.filename = os.path.join(self.basedir, 'test.cfg')
         self.patch(config.master, "get_is_in_unit_tests", lambda: False)
 
         return self.setUpDirs('basedir')
-
-    def tearDown(self):
-        return self.tearDownDirs()
 
     def install_config_file(self, config_file, other_files=None):
         if other_files is None:
@@ -131,13 +124,11 @@ class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousT
                 f.write(contents)
 
     def test_loadConfig_missing_file(self):
-        with self.assertRaisesConfigError(
-                re.compile("configuration file .* does not exist")):
+        with self.assertRaisesConfigError(re.compile("configuration file .* does not exist")):
             loadConfigDict(self.basedir, self.filename)
 
     def test_loadConfig_missing_basedir(self):
-        with self.assertRaisesConfigError(
-                re.compile("basedir .* does not exist")):
+        with self.assertRaisesConfigError(re.compile("basedir .* does not exist")):
             loadConfigDict(os.path.join(self.basedir, 'NO'), 'test.cfg')
 
     def test_loadConfig_open_error(self):
@@ -147,7 +138,7 @@ class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousT
         """
 
         def raise_IOError(*args, **kwargs):
-            raise IOError("error_msg")
+            raise OSError("error_msg")
 
         self.install_config_file('#dummy')
 
@@ -156,13 +147,15 @@ class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousT
 
         # check that we got the expected ConfigError exception
         with self.assertRaisesConfigError(
-                re.compile("unable to open configuration file .*: error_msg")):
+            re.compile("unable to open configuration file .*: error_msg")
+        ):
             loadConfigDict(self.basedir, self.filename)
 
     def test_loadConfig_parse_error(self):
         self.install_config_file('def x:\nbar')
-        with self.assertRaisesConfigError(re.compile(
-                "encountered a SyntaxError while parsing config file:")):
+        with self.assertRaisesConfigError(
+            re.compile("encountered a SyntaxError while parsing config file:")
+        ):
             loadConfigDict(self.basedir, self.filename)
 
     def test_loadConfig_eval_ConfigError(self):
@@ -179,7 +172,8 @@ class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousT
                 BuildmasterConfig = { 'multiMaster': True }
                 raise ValueError('oh noes')""")
         with self.assertRaisesConfigError(
-                "error while parsing config file: oh noes (traceback in logfile)"):
+            "error while parsing config file: oh noes (traceback in logfile)"
+        ):
             loadConfigDict(self.basedir, self.filename)
 
         [error] = self.flushLoggedErrors(ValueError)
@@ -187,16 +181,17 @@ class ConfigLoaderTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.SynchronousT
 
     def test_loadConfig_no_BuildmasterConfig(self):
         self.install_config_file('x=10')
-        with self.assertRaisesConfigError(
-                "does not define 'BuildmasterConfig'"):
+        with self.assertRaisesConfigError("does not define 'BuildmasterConfig'"):
             loadConfigDict(self.basedir, self.filename)
 
     def test_loadConfig_with_local_import(self):
-        self.install_config_file("""\
+        self.install_config_file(
+            """\
                 from subsidiary_module import x
                 BuildmasterConfig = dict(x=x)
                 """,
-                                 {'basedir/subsidiary_module.py': "x = 10"})
+            {'basedir/subsidiary_module.py': "x = 10"},
+        )
         _, rv = loadConfigDict(self.basedir, self.filename)
         self.assertEqual(rv, {'x': 10})
 
@@ -208,9 +203,6 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
         self.basedir = os.path.abspath('basedir')
         self.filename = os.path.join(self.basedir, 'test.cfg')
         return self.setUpDirs('basedir')
-
-    def tearDown(self):
-        return self.tearDownDirs()
 
     # utils
 
@@ -227,12 +219,13 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
             v = getattr(config.master.MasterConfig, n)
             if callable(v):
                 if typ == 'loader':
-                    self.patch(config.master.MasterConfig, n,
-                               mock.Mock(side_effect=lambda filename,
-                                         config_dict: None))
+                    self.patch(
+                        config.master.MasterConfig,
+                        n,
+                        mock.Mock(side_effect=lambda filename, config_dict: None),
+                    )
                 else:
-                    self.patch(config.master.MasterConfig, n,
-                               mock.Mock(side_effect=lambda: None))
+                    self.patch(config.master.MasterConfig, n, mock.Mock(side_effect=lambda: None))
 
     def install_config_file(self, config_file, other_files=None):
         if other_files is None:
@@ -243,6 +236,7 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
         for file, contents in other_files.items():
             with open(file, "w", encoding='utf-8') as f:
                 f.write(contents)
+
     # tests
 
     def test_defaults(self):
@@ -259,13 +253,11 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
             "change_sources": [],
             "status": [],
             "user_managers": [],
-            "revlink": revlinks.default_revlink_matcher
+            "revlink": revlinks.default_revlink_matcher,
         }
         expected.update(global_defaults)
         expected['buildbotNetUsageData'] = 'basic'
-        got = {
-            attr: getattr(cfg, attr)
-            for attr, exp in expected.items()}
+        got = {attr: getattr(cfg, attr) for attr, exp in expected.items()}
         got = interfaces.IConfigured(got).getConfigDict()
         expected = interfaces.IConfigured(expected).getConfigDict()
         self.assertEqual(got, expected)
@@ -273,10 +265,15 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
     def test_defaults_validation(self):
         # re's aren't comparable, but we can make sure the keys match
         cfg = config.master.MasterConfig()
-        self.assertEqual(sorted(cfg.validation.keys()),
-                         sorted([
-                             'branch', 'revision', 'property_name', 'property_value',
-                         ]))
+        self.assertEqual(
+            sorted(cfg.validation.keys()),
+            sorted([
+                'branch',
+                'revision',
+                'property_name',
+                'property_value',
+            ]),
+        )
 
     def test_loadConfig_eval_ConfigErrors(self):
         # We test a config that has embedded errors, as well
@@ -291,9 +288,10 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
         with capture_config_errors() as errors:
             FileLoader(self.basedir, self.filename).loadConfig()
 
-        self.assertEqual(errors.errors, ['oh noes!', 'noes too!',
-                                         'no workers are configured',
-                                         'no builders are configured'])
+        self.assertEqual(
+            errors.errors,
+            ['oh noes!', 'noes too!', 'no workers are configured', 'no builders are configured'],
+        )
 
     def test_loadConfig_unknown_key(self):
         self.patch_load_helpers()
@@ -308,8 +306,7 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
         self.install_config_file("""\
                 BuildmasterConfig = dict(foo=10, bar=20)
                 """)
-        with self.assertRaisesConfigError(
-                "Unknown BuildmasterConfig keys bar, foo"):
+        with self.assertRaisesConfigError("Unknown BuildmasterConfig keys bar, foo"):
             FileLoader(self.basedir, self.filename).loadConfig()
 
     def test_loadConfig_success(self):
@@ -342,24 +339,26 @@ class MasterConfigTests(ConfigErrorsMixin, dirs.DirsMixin, unittest.TestCase):
 
     def test_preChangeGenerator(self):
         cfg = config.master.MasterConfig()
-        self.assertEqual({
-            'author': None,
-            'files': None,
-            'comments': None,
-            'revision': None,
-            'when_timestamp': None,
-            'branch': None,
-            'category': None,
-            'revlink': '',
-            'properties': {},
-            'repository': '',
-            'project': '',
-            'codebase': None},
-            cfg.preChangeGenerator())
+        self.assertEqual(
+            {
+                'author': None,
+                'files': None,
+                'comments': None,
+                'revision': None,
+                'when_timestamp': None,
+                'branch': None,
+                'category': None,
+                'revlink': '',
+                'properties': {},
+                'repository': '',
+                'project': '',
+                'codebase': None,
+            },
+            cfg.preChangeGenerator(),
+        )
 
 
 class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
-
     filename = 'test.cfg'
 
     def setUp(self):
@@ -368,9 +367,7 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
     # utils
 
     def assertResults(self, **expected):
-        got = {
-            attr: getattr(self.cfg, attr)
-            for attr, exp in expected.items()}
+        got = {attr: getattr(self.cfg, attr) for attr, exp in expected.items()}
         got = interfaces.IConfigured(got).getConfigDict()
         expected = interfaces.IConfigured(expected).getConfigDict()
 
@@ -422,25 +419,11 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         with assertProducesWarning(ConfigWarning, message_pattern=r"Title is too long"):
             self.do_test_load_global({"title": "Very very very very very long title"})
 
-    def test_load_global_projectName(self):
-        with assertProducesWarning(
-            DeprecatedApiWarning,
-            message_pattern=r"Configuration dictionary key projectName is deprecated"
-        ):
-            self.do_test_load_global({"projectName": 'hey'}, title='hey')
-
-    def test_load_global_projectURL(self):
-        with assertProducesWarning(
-            DeprecatedApiWarning,
-            message_pattern=r"Configuration dictionary key projectURL is deprecated"
-        ):
-            self.do_test_load_global({"projectURL": 'hey'}, titleURL='hey')
-
     def test_load_global_titleURL(self):
-        self.do_test_load_global({"titleURL": 'hi'}, titleURL='hi')
+        self.do_test_load_global({"titleURL": 'hi'}, titleURL='hi/')
 
     def test_load_global_buildbotURL(self):
-        self.do_test_load_global({"buildbotURL": 'hey'}, buildbotURL='hey')
+        self.do_test_load_global({"buildbotURL": 'hey'}, buildbotURL='hey/')
 
     def test_load_global_changeHorizon(self):
         self.do_test_load_global({"changeHorizon": 10}, changeHorizon=10)
@@ -451,38 +434,36 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
     def test_load_global_buildbotNetUsageData(self):
         self.patch(config.master, "get_is_in_unit_tests", lambda: False)
         with assertProducesWarning(
-                ConfigWarning,
-                message_pattern=r"`buildbotNetUsageData` is not configured and defaults to basic."):
-            self.do_test_load_global(
-                {})
+            ConfigWarning,
+            message_pattern=r"`buildbotNetUsageData` is not configured and defaults to basic.",
+        ):
+            self.do_test_load_global({})
 
     def test_load_global_logCompressionLimit(self):
-        self.do_test_load_global({"logCompressionLimit": 10},
-                                 logCompressionLimit=10)
+        self.do_test_load_global({"logCompressionLimit": 10}, logCompressionLimit=10)
 
     def test_load_global_logCompressionMethod(self):
-        self.do_test_load_global({"logCompressionMethod": 'bz2'},
-                                 logCompressionMethod='bz2')
+        self.do_test_load_global({"logCompressionMethod": 'bz2'}, logCompressionMethod='bz2')
 
     def test_load_global_logCompressionMethod_invalid(self):
         with capture_config_errors() as errors:
             self.cfg.load_global(self.filename, {'logCompressionMethod': 'foo'})
 
         self.assertConfigError(
-            errors, "c['logCompressionMethod'] must be 'raw', 'bz2', 'gz' or 'lz4'")
+            errors, "c['logCompressionMethod'] must be 'raw', 'bz2', 'gz', 'lz4', 'br' or 'zstd'"
+        )
 
     def test_load_global_codebaseGenerator(self):
         func = lambda _: "dummy"
-        self.do_test_load_global({"codebaseGenerator": func},
-                                 codebaseGenerator=func)
+        self.do_test_load_global({"codebaseGenerator": func}, codebaseGenerator=func)
 
     def test_load_global_codebaseGenerator_invalid(self):
         with capture_config_errors() as errors:
             self.cfg.load_global(self.filename, {'codebaseGenerator': 'dummy'})
 
-        self.assertConfigError(errors,
-                               "codebaseGenerator must be a callable "
-                               "accepting a dict and returning a str")
+        self.assertConfigError(
+            errors, "codebaseGenerator must be a callable accepting a dict and returning a str"
+        )
 
     def test_load_global_logMaxSize(self):
         self.do_test_load_global({"logMaxSize": 123}, logMaxSize=123)
@@ -505,25 +486,21 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         self.assertConfigError(errors, "must be a dictionary")
 
     def test_load_global_collapseRequests_bool(self):
-        self.do_test_load_global({"collapseRequests": False},
-                                 collapseRequests=False)
+        self.do_test_load_global({"collapseRequests": False}, collapseRequests=False)
 
     def test_load_global_collapseRequests_callable(self):
         callable = lambda: None
-        self.do_test_load_global({"collapseRequests": callable},
-                                 collapseRequests=callable)
+        self.do_test_load_global({"collapseRequests": callable}, collapseRequests=callable)
 
     def test_load_global_collapseRequests_invalid(self):
         with capture_config_errors() as errors:
             self.cfg.load_global(self.filename, {'collapseRequests': 'yes'})
 
-        self.assertConfigError(errors,
-                               "must be a callable, True, or False")
+        self.assertConfigError(errors, "must be a callable, True, or False")
 
     def test_load_global_prioritizeBuilders_callable(self):
         callable = lambda: None
-        self.do_test_load_global({"prioritizeBuilders": callable},
-                                 prioritizeBuilders=callable)
+        self.do_test_load_global({"prioritizeBuilders": callable}, prioritizeBuilders=callable)
 
     def test_load_global_prioritizeBuilders_invalid(self):
         with capture_config_errors() as errors:
@@ -542,8 +519,9 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         self.assertConfigError(errors, "must be a callable")
 
     def test_load_global_protocols_str(self):
-        self.do_test_load_global({"protocols": {'pb': {'port': 'udp:123'}}},
-                                 protocols={'pb': {'port': 'udp:123'}})
+        self.do_test_load_global(
+            {"protocols": {'pb': {'port': 'udp:123'}}}, protocols={'pb': {'port': 'udp:123'}}
+        )
 
     def test_load_global_multiMaster(self):
         self.do_test_load_global({"multiMaster": 1}, multiMaster=1)
@@ -554,8 +532,7 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
 
     def test_load_global_revlink_callable(self):
         callable = lambda: None
-        self.do_test_load_global({"revlink": callable},
-                                 revlink=callable)
+        self.do_test_load_global({"revlink": callable}, revlink=callable)
 
     def test_load_global_revlink_invalid(self):
         with capture_config_errors() as errors:
@@ -565,10 +542,15 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
 
     def test_load_validation_defaults(self):
         self.cfg.load_validation(self.filename, {})
-        self.assertEqual(sorted(self.cfg.validation.keys()),
-                         sorted([
-                             'branch', 'revision', 'property_name', 'property_value',
-                         ]))
+        self.assertEqual(
+            sorted(self.cfg.validation.keys()),
+            sorted([
+                'branch',
+                'revision',
+                'property_name',
+                'property_value',
+            ]),
+        )
 
     def test_load_validation_invalid(self):
         with capture_config_errors() as errors:
@@ -591,8 +573,7 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
 
     def test_load_db_defaults(self):
         self.cfg.load_db(self.filename, {})
-        self.assertResults(
-            db={"db_url": 'sqlite:///state.sqlite'})
+        self.assertResults(db={"db_url": 'sqlite:///state.sqlite'})
 
     def test_load_db_db_url(self):
         self.cfg.load_db(self.filename, {"db_url": 'abcd'})
@@ -738,8 +719,7 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         self.assertConfigError(errors, "is not a builder config (in c['builders']")
 
     def test_load_builders(self):
-        bldr = config.BuilderConfig(name='x',
-                                    factory=factory.BuildFactory(), workername='x')
+        bldr = config.BuilderConfig(name='x', factory=factory.BuildFactory(), workername='x')
         self.cfg.load_builders(self.filename, {"builders": [bldr]})
         self.assertResults(builders=[bldr])
 
@@ -754,12 +734,10 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
             "name": 'x',
             "factory": factory.BuildFactory(),
             "workername": 'x',
-            "builddir": os.path.abspath('.')
+            "builddir": os.path.abspath('.'),
         }
         self.cfg.load_builders(self.filename, {"builders": [bldr]})
-        self.assertEqual(
-            len(self.flushWarnings([self.cfg.load_builders])),
-            1)
+        self.assertEqual(len(self.flushWarnings([self.cfg.load_builders])), 1)
 
     def test_load_workers_defaults(self):
         self.cfg.load_workers(self.filename, {})
@@ -776,9 +754,7 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
 
         self.assertConfigError(errors, "must be a list of")
 
-    @parameterized.expand([
-        'debug', 'change', 'status'
-    ])
+    @parameterized.expand(['debug', 'change', 'status'])
     def test_load_workers_reserved_names(self, worker_name):
         with capture_config_errors() as errors:
             self.cfg.load_workers(self.filename, {'workers': [worker.Worker(worker_name, 'x')]})
@@ -876,79 +852,87 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
 
     def test_load_www_default(self):
         self.cfg.load_www(self.filename, {})
-        self.assertResults(www={
-            "port": None,
-            "plugins": {},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "logfileName": 'http.log'
-        })
+        self.assertResults(
+            www={
+                "port": None,
+                "plugins": {},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "logfileName": 'http.log',
+            }
+        )
 
     def test_load_www_port(self):
         self.cfg.load_www(self.filename, {"www": {"port": 9888}})
-        self.assertResults(www={
-            "port": 9888,
-            "plugins": {},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "logfileName": 'http.log'
-        })
+        self.assertResults(
+            www={
+                "port": 9888,
+                "plugins": {},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "logfileName": 'http.log',
+            }
+        )
 
     def test_load_www_plugin(self):
-        self.cfg.load_www(self.filename,
-                          {"www": {"plugins": {'waterfall': {'foo': 'bar'}}}})
-        self.assertResults(www={
-            "port": None,
-            "plugins": {'waterfall': {'foo': 'bar'}},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "logfileName": 'http.log'
-        })
+        self.cfg.load_www(self.filename, {"www": {"plugins": {'waterfall': {'foo': 'bar'}}}})
+        self.assertResults(
+            www={
+                "port": None,
+                "plugins": {'waterfall': {'foo': 'bar'}},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "logfileName": 'http.log',
+            }
+        )
 
     def test_load_www_allowed_origins(self):
-        self.cfg.load_www(self.filename,
-                          {"www": {"allowed_origins": ['a', 'b']}})
-        self.assertResults(www={
-            "port": None,
-            "allowed_origins": ['a', 'b'],
-            "plugins": {},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "logfileName": 'http.log'
-        })
+        self.cfg.load_www(self.filename, {"www": {"allowed_origins": ['a', 'b']}})
+        self.assertResults(
+            www={
+                "port": None,
+                "allowed_origins": ['a', 'b'],
+                "plugins": {},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "logfileName": 'http.log',
+            }
+        )
 
     def test_load_www_logfileName(self):
-        self.cfg.load_www(self.filename,
-                          {"www": {"logfileName": 'http-access.log'}})
-        self.assertResults(www={
-            "port": None,
-            "plugins": {},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "logfileName": 'http-access.log'
-        })
+        self.cfg.load_www(self.filename, {"www": {"logfileName": 'http-access.log'}})
+        self.assertResults(
+            www={
+                "port": None,
+                "plugins": {},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "logfileName": 'http-access.log',
+            }
+        )
 
     def test_load_www_versions(self):
         custom_versions = [
             ('Test Custom Component', '0.0.1'),
             ('Test Custom Component 2', '0.1.0'),
         ]
-        self.cfg.load_www(
-            self.filename, {'www': {"versions": custom_versions}})
-        self.assertResults(www={
-            "port": None,
-            "plugins": {},
-            "auth": {'name': 'NoAuth'},
-            "authz": {},
-            "avatar_methods": {'name': 'gravatar'},
-            "versions": custom_versions,
-            "logfileName": 'http.log'
-        })
+        self.cfg.load_www(self.filename, {'www': {"versions": custom_versions}})
+        self.assertResults(
+            www={
+                "port": None,
+                "plugins": {},
+                "auth": {'name': 'NoAuth'},
+                "authz": {},
+                "avatar_methods": {'name': 'gravatar'},
+                "versions": custom_versions,
+                "logfileName": 'http.log',
+            }
+        )
 
     def test_load_www_versions_not_list(self):
         with capture_config_errors() as errors:
@@ -982,7 +966,6 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         testcase = self
 
         class MyService(service.BuildbotService):
-
             def reconfigService(self, foo=None):
                 testcase.foo = foo
 
@@ -992,7 +975,6 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
         self.assertResults(services={"foo": myService})
 
     def test_load_services_badservice(self):
-
         class MyService:
             pass
 
@@ -1000,38 +982,40 @@ class MasterConfig_loaders(ConfigErrorsMixin, unittest.TestCase):
             myService = MyService()
             self.cfg.load_services(self.filename, {'services': [myService]})
 
-        errMsg = ("<class 'buildbot.test.unit.config.test_master."
-                  "MasterConfig_loaders.test_load_services_badservice."
-                  "<locals>.MyService'> ")
+        errMsg = (
+            "<class 'buildbot.test.unit.config.test_master."
+            "MasterConfig_loaders.test_load_services_badservice."
+            "<locals>.MyService'> "
+        )
         errMsg += "object should be an instance of buildbot.util.service.BuildbotService"
         self.assertConfigError(errors, errMsg)
 
     def test_load_services_duplicate(self):
         with capture_config_errors() as errors:
+
             class MyService(service.BuildbotService):
                 name = 'myservice'
 
                 def reconfigService(self, x=None):
                     self.x = x
 
-            self.cfg.load_services(self.filename, {
-                "services": [MyService(x='a'), MyService(x='b')]})
+            self.cfg.load_services(
+                self.filename, {"services": [MyService(x='a'), MyService(x='b')]}
+            )
 
-        self.assertConfigError(errors, f'Duplicate service name {repr(MyService.name)}')
+        self.assertConfigError(errors, f'Duplicate service name {MyService.name!r}')
 
     def test_load_configurators_norminal(self):
-
         class MyConfigurator(configurators.ConfiguratorBase):
-
             def configure(self, config_dict):
                 config_dict['foo'] = 'bar'
+
         c = {"configurators": [MyConfigurator()]}
         self.cfg.run_configurators(self.filename, c)
         self.assertEqual(c['foo'], 'bar')
 
 
 class MasterConfig_checkers(ConfigErrorsMixin, unittest.TestCase):
-
     def setUp(self):
         self.cfg = config.master.MasterConfig()
 
@@ -1053,10 +1037,9 @@ class MasterConfig_checkers(ConfigErrorsMixin, unittest.TestCase):
         self.cfg.workers = [mock.Mock()]
         self.cfg.builders = [b1, b2]
 
-    def setup_builder_locks(self,
-                            builder_lock=None,
-                            dup_builder_lock=False,
-                            bare_builder_lock=False):
+    def setup_builder_locks(
+        self, builder_lock=None, dup_builder_lock=False, bare_builder_lock=False
+    ):
         """Set-up two mocked builders with specified locks.
 
         @type  builder_lock: string or None
@@ -1071,6 +1054,7 @@ class MasterConfig_checkers(ConfigErrorsMixin, unittest.TestCase):
         @param bare_builder_lock: if True, add bare lock objects, don't wrap
                                   them into locks.LockAccess object
         """
+
         def bldr(name):
             b = mock.Mock()
             b.name = name
@@ -1084,7 +1068,8 @@ class MasterConfig_checkers(ConfigErrorsMixin, unittest.TestCase):
                 return lock
             return locks.LockAccess(lock, "counting", count=1)
 
-        b1, b2 = bldr('b1'), bldr('b2')
+        b1 = bldr('b1')
+        b2 = bldr('b2')
         self.cfg.builders = [b1, b2]
         if builder_lock:
             b1.locks.append(lock(builder_lock))
@@ -1304,29 +1289,21 @@ class MasterConfig_checkers(ConfigErrorsMixin, unittest.TestCase):
 
     def test_check_machines_unknown_name(self):
         with capture_config_errors() as errors:
-            self.cfg.workers = [
-                FakeWorker(name='wa', machine_name='unk')
-            ]
-            self.cfg.machines = [
-                FakeMachine(name='a')
-            ]
+            self.cfg.workers = [FakeWorker(name='wa', machine_name='unk')]
+            self.cfg.machines = [FakeMachine(name='a')]
             self.cfg.check_machines()
 
         self.assertConfigError(errors, 'uses unknown machine')
 
     def test_check_machines_duplicate_name(self):
         with capture_config_errors() as errors:
-            self.cfg.machines = [
-                FakeMachine(name='a'),
-                FakeMachine(name='a')
-            ]
+            self.cfg.machines = [FakeMachine(name='a'), FakeMachine(name='a')]
             self.cfg.check_machines()
 
         self.assertConfigError(errors, 'duplicate machine name')
 
 
 class MasterConfig_old_worker_api(unittest.TestCase):
-
     filename = "test.cfg"
 
     def setUp(self):
@@ -1337,9 +1314,7 @@ class MasterConfig_old_worker_api(unittest.TestCase):
             self.assertEqual(self.cfg.workers, [])
 
 
-class FakeService(service.ReconfigurableServiceMixin,
-                  service.AsyncService):
-
+class FakeService(service.ReconfigurableServiceMixin, service.AsyncService):
     succeed = True
     call_index = 1
 
@@ -1352,9 +1327,7 @@ class FakeService(service.ReconfigurableServiceMixin,
             raise ValueError("oh noes")
 
 
-class FakeMultiService(service.ReconfigurableServiceMixin,
-                       service.AsyncMultiService):
-
+class FakeMultiService(service.ReconfigurableServiceMixin, service.AsyncMultiService):
     def reconfigServiceWithBuildbotConfig(self, new_config):
         self.called = True
         d = super().reconfigServiceWithBuildbotConfig(new_config)
@@ -1362,7 +1335,6 @@ class FakeMultiService(service.ReconfigurableServiceMixin,
 
 
 class ReconfigurableServiceMixin(unittest.TestCase):
-
     @defer.inlineCallbacks
     def test_service(self):
         svc = FakeService()

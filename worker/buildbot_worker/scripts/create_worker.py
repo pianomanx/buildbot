@@ -75,11 +75,11 @@ s = Worker(buildmaster_host, port, workername, passwd, basedir,
            connection_string=connection_string,
            proxy_connection_string=proxy_connection_string)
 s.setServiceParent(application)
-"""]
+""",
+]
 
 
 class CreateWorkerError(Exception):
-
     """
     Raised on errors while setting up worker directory.
     """
@@ -124,8 +124,7 @@ def _makeBaseDir(basedir, quiet):
     try:
         os.mkdir(basedir)
     except OSError as exception:
-        raise CreateWorkerError("error creating directory {0}: {1}".format(
-                                basedir, exception.strerror))
+        raise CreateWorkerError(f"error creating directory {basedir}") from exception
 
 
 def _makeBuildbotTac(basedir, tac_file_contents, quiet):
@@ -143,11 +142,10 @@ def _makeBuildbotTac(basedir, tac_file_contents, quiet):
 
     if os.path.exists(tacfile):
         try:
-            with open(tacfile, "rt") as f:
+            with open(tacfile) as f:
                 oldcontents = f.read()
-        except IOError as exception:
-            raise CreateWorkerError("error reading {0}: {1}".format(
-                                    tacfile, exception.strerror))
+        except OSError as exception:
+            raise CreateWorkerError(f"error reading {tacfile}") from exception
 
         if oldcontents == tac_file_contents:
             if not quiet:
@@ -161,12 +159,11 @@ def _makeBuildbotTac(basedir, tac_file_contents, quiet):
         tacfile = os.path.join(basedir, "buildbot.tac.new")
 
     try:
-        with open(tacfile, "wt") as f:
+        with open(tacfile, "w") as f:
             f.write(tac_file_contents)
         os.chmod(tacfile, 0o600)
-    except IOError as exception:
-        raise CreateWorkerError("could not write {0}: {1}".format(
-                                tacfile, exception.strerror))
+    except OSError as exception:
+        raise CreateWorkerError(f"could not write {tacfile}") from exception
 
 
 def _makeInfoFiles(basedir, quiet):
@@ -179,6 +176,7 @@ def _makeInfoFiles(basedir, quiet):
     @raise CreateWorkerError: on error making info directory or
                              writing info files
     """
+
     def createFile(path, file, contents):
         filepath = os.path.join(path, file)
 
@@ -186,14 +184,14 @@ def _makeInfoFiles(basedir, quiet):
             return False
 
         if not quiet:
-            print("Creating {0}, you need to edit it appropriately.".format(
-                  os.path.join("info", file)))
+            print(
+                "Creating {}, you need to edit it appropriately.".format(os.path.join("info", file))
+            )
 
         try:
-            open(filepath, "wt").write(contents)
-        except IOError as exception:
-            raise CreateWorkerError("could not write {0}: {1}".format(
-                                    filepath, exception.strerror))
+            open(filepath, "w").write(contents)
+        except OSError as exception:
+            raise CreateWorkerError(f"could not write {filepath}") from exception
         return True
 
     path = os.path.join(basedir, "info")
@@ -203,26 +201,22 @@ def _makeInfoFiles(basedir, quiet):
         try:
             os.mkdir(path)
         except OSError as exception:
-            raise CreateWorkerError("error creating directory {0}: {1}".format(
-                                    path, exception.strerror))
+            raise CreateWorkerError(f"error creating directory {path}") from exception
 
     # create 'info/admin' file
-    created = createFile(path, "admin",
-                         "Your Name Here <admin@youraddress.invalid>\n")
+    created = createFile(path, "admin", "Your Name Here <admin@youraddress.invalid>\n")
 
     # create 'info/host' file
-    created = createFile(path, "host",
-                         "Please put a description of this build host here\n")
+    created = createFile(path, "host", "Please put a description of this build host here\n")
 
     access_uri = os.path.join(path, "access_uri")
 
     if not os.path.exists(access_uri):
         if not quiet:
-            print("Not creating {0} - add it if you wish".format(
-                  os.path.join("info", "access_uri")))
+            print("Not creating {} - add it if you wish".format(os.path.join("info", "access_uri")))
 
     if created and not quiet:
-        print("Please edit the files in {0} appropriately.".format(path))
+        print(f"Please edit the files in {path} appropriately.")
 
 
 def createWorker(config):
@@ -236,11 +230,10 @@ def createWorker(config):
         _makeBuildbotTac(basedir, contents, quiet)
         _makeInfoFiles(basedir, quiet)
     except CreateWorkerError as exception:
-        print("{0}\nfailed to configure worker in {1}".format(
-              exception, config['basedir']))
+        print("{}\nfailed to configure worker in {}".format(exception, config['basedir']))
         return 1
 
     if not quiet:
-        print("worker configured in {0}".format(basedir))
+        print(f"worker configured in {basedir}")
 
     return 0

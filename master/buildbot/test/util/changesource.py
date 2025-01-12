@@ -13,15 +13,22 @@
 #
 # Copyright Buildbot Team Members
 
+from typing import TYPE_CHECKING
 
 from twisted.internet import defer
-from twisted.internet import task
+from twisted.trial import unittest
 
 from buildbot.test.fake import fakemaster
 
+if TYPE_CHECKING:
+    from twisted.trial import unittest
 
-class ChangeSourceMixin:
+    _ChangeSourceMixinBase = unittest.TestCase
+else:
+    _ChangeSourceMixinBase = object
 
+
+class ChangeSourceMixin(_ChangeSourceMixinBase):
     """
     This class is used for testing change sources, and handles a few things:
 
@@ -36,42 +43,28 @@ class ChangeSourceMixin:
     OTHER_MASTER_ID = 93
     DEFAULT_NAME = "ChangeSource"
 
-    def setUpChangeSource(self):
-        "Set up the mixin - returns a deferred."
-        self.master = fakemaster.make_master(self, wantDb=True, wantData=True)
-        assert not hasattr(self.master, 'addChange')  # just checking..
-        return defer.succeed(None)
-
     @defer.inlineCallbacks
-    def tearDownChangeSource(self):
-        "Tear down the mixin - returns a deferred."
-        if not self.started:
-            return
-        if self.changesource.running:
-            yield self.changesource.stopService()
-        yield self.changesource.disownServiceParent()
-        return
+    def setUpChangeSource(self, want_real_reactor: bool = False):
+        "Set up the mixin - returns a deferred."
+        self.master = yield fakemaster.make_master(
+            self, wantDb=True, wantData=True, wantRealReactor=want_real_reactor
+        )
+
+        @defer.inlineCallbacks
+        def cleanup():
+            if not self.started:
+                return
+            if self.changesource.running:
+                yield self.changesource.stopService()
+            yield self.changesource.disownServiceParent()
+
+        self.addCleanup(cleanup)
 
     @defer.inlineCallbacks
     def attachChangeSource(self, cs):
-        "Set up a change source for testing; sets its .master attribute"
         self.changesource = cs
-        # FIXME some changesource does not have master property yet but
-        # mailchangesource has :-/
-        try:
-            self.changesource.master = self.master
-        except AttributeError:
-            yield self.changesource.setServiceParent(self.master)
-
-        # configure the service to let secret manager render the secrets
-        try:
-            yield self.changesource.configureService()
-        except NotImplementedError:  # non-reconfigurable change sources can't reconfig
-            pass
-
-        # also, now that changesources are ClusteredServices, setting up
-        # the clock here helps in the unit tests that check that behavior
-        self.changesource.clock = task.Clock()
+        yield self.changesource.setServiceParent(self.master)
+        yield self.changesource.configureService()
         return cs
 
     def startChangeSource(self):
@@ -95,11 +88,8 @@ class ChangeSourceMixin:
         else:
             name = self.DEFAULT_NAME
 
-        self.master.data.updates.changesourceIds[
-            name] = self.DUMMY_CHANGESOURCE_ID
+        self.master.data.updates.changesourceIds[name] = self.DUMMY_CHANGESOURCE_ID
         if otherMaster:
-            self.master.data.updates.changesourceMasters[
-                self.DUMMY_CHANGESOURCE_ID] = otherMaster
+            self.master.data.updates.changesourceMasters[self.DUMMY_CHANGESOURCE_ID] = otherMaster
         else:
-            del self.master.data.updates.changesourceMasters[
-                self.DUMMY_CHANGESOURCE_ID]
+            del self.master.data.updates.changesourceMasters[self.DUMMY_CHANGESOURCE_ID]

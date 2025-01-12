@@ -13,6 +13,8 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
 import getpass
 import os
 import sys
@@ -30,11 +32,9 @@ from buildbot.test.util import misc
 
 
 class OptionsMixin:
-
     def setUpOptions(self):
         self.options_file = {}
-        self.patch(base.SubcommandOptions, 'loadOptionsFile',
-                   lambda other_self: self.options_file)
+        self.patch(base.SubcommandOptions, 'loadOptionsFile', lambda other_self: self.options_file)
 
     def assertOptions(self, opts, exp):
         got = {k: opts[k] for k in exp}
@@ -42,12 +42,11 @@ class OptionsMixin:
             msg = []
             for k in exp:
                 if opts[k] != exp[k]:
-                    msg.append(f" {k}: expected {repr(exp[k])}, got {repr(opts[k])}")
+                    msg.append(f" {k}: expected {exp[k]!r}, got {opts[k]!r}")
             self.fail("did not get expected options\n" + ("\n".join(msg)))
 
 
 class TestUpgradeMasterOptions(OptionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
 
@@ -77,7 +76,6 @@ class TestUpgradeMasterOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestCreateMasterOptions(OptionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
 
@@ -93,11 +91,8 @@ class TestCreateMasterOptions(OptionsMixin, unittest.TestCase):
             "config": 'master.cfg',
             "db": 'sqlite:///state.sqlite',
             "basedir": os.getcwd(),
-            "quiet": False, **{
-                'no-logrotate': False,
-                'log-size': 10000000,
-                'log-count': 10
-            }
+            "quiet": False,
+            **{'no-logrotate': False, 'log-size': 10000000, 'log-count': 10},
         }
         unk_keys = set(kwargs.keys()) - set(defaults.keys())
         assert not unk_keys, f"invalid keys {unk_keys}"
@@ -203,8 +198,7 @@ class TestCreateMasterOptions(OptionsMixin, unittest.TestCase):
         self.assertOptions(opts, exp)
 
     def test_db_invalid(self):
-        with self.assertRaisesRegex(usage.UsageError,
-                               "could not parse database URL 'inv_db_url'"):
+        with self.assertRaisesRegex(usage.UsageError, "could not parse database URL 'inv_db_url'"):
             self.parse("--db=inv_db_url")
 
     def test_db_basedir(self):
@@ -217,8 +211,8 @@ class TestCreateMasterOptions(OptionsMixin, unittest.TestCase):
 class BaseTestSimpleOptions(OptionsMixin):
     # tests for options with just --quiet and a usage message
 
-    commandName = None
-    optionsClass = None
+    commandName: str | None = None
+    optionsClass: type[usage.Options] | None = None
 
     def setUp(self):
         self.setUpOptions()
@@ -274,7 +268,6 @@ class TestReconfigOptions(BaseTestSimpleOptions, unittest.TestCase):
 
 
 class TestTryOptions(OptionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
 
@@ -306,7 +299,7 @@ class TestTryOptions(OptionsMixin, unittest.TestCase):
             "quiet": False,
             "builders": [],
             "properties": {},
-            "buildbotbin": 'buildbot'
+            "buildbotbin": 'buildbot',
         }
         # dashes make python syntax hard..
         defaults['get-builder-names'] = False
@@ -378,11 +371,18 @@ class TestTryOptions(OptionsMixin, unittest.TestCase):
         self.assertOptions(opts, exp)
 
     def test_options_short(self):
-        opts = self.parse(
-            *'-n -q -c pb -u me -m mr:7 -w you -C comm -p 2 -b bb'.split())
-        exp = self.defaults_and(dryrun=True, quiet=True, connect='pb',
-                                username='me', master='mr:7', who='you', comment='comm',
-                                patchlevel=2, builders=['bb'])
+        opts = self.parse(*'-n -q -c pb -u me -m mr:7 -w you -C comm -p 2 -b bb'.split())
+        exp = self.defaults_and(
+            dryrun=True,
+            quiet=True,
+            connect='pb',
+            username='me',
+            master='mr:7',
+            who='you',
+            comment='comm',
+            patchlevel=2,
+            builders=['bb'],
+        )
         self.assertOptions(opts, exp)
 
     def test_options_long(self):
@@ -392,14 +392,33 @@ class TestTryOptions(OptionsMixin, unittest.TestCase):
                 --who=w --comment=comm --diff=d --patchlevel=7 --baserev=br
                 --vc=cvs --branch=br --repository=rep --builder=bl
                 --properties=a=b --topfile=Makefile --topdir=.
-                --buildbotbin=.virtualenvs/buildbot/bin/buildbot""".split())
-        exp = self.defaults_and(wait=True, dryrun=True, get_builder_names=True,
-                                quiet=True, connect='pb', host='h', jobdir='j', username='u',
-                                master='m:1234', passwd='p', who='w', comment='comm', diff='d',
-                                patchlevel=7, baserev='br', vc='cvs', branch='br',
-                                repository='rep', builders=['bl'], properties={"a": 'b'},
-                                topfile='Makefile', topdir='.',
-                                buildbotbin='.virtualenvs/buildbot/bin/buildbot')
+                --buildbotbin=.virtualenvs/buildbot/bin/buildbot""".split()
+        )
+        exp = self.defaults_and(
+            wait=True,
+            dryrun=True,
+            get_builder_names=True,
+            quiet=True,
+            connect='pb',
+            host='h',
+            jobdir='j',
+            username='u',
+            master='m:1234',
+            passwd='p',
+            who='w',
+            comment='comm',
+            diff='d',
+            patchlevel=7,
+            baserev='br',
+            vc='cvs',
+            branch='br',
+            repository='rep',
+            builders=['bl'],
+            properties={"a": 'b'},
+            topfile='Makefile',
+            topdir='.',
+            buildbotbin='.virtualenvs/buildbot/bin/buildbot',
+        )
         self.assertOptions(opts, exp)
 
     def test_patchlevel_inval(self):
@@ -450,14 +469,27 @@ class TestTryOptions(OptionsMixin, unittest.TestCase):
             "try_comment": 'comm',
             "try_quiet": 'y',
             "try_wait": 'y',
-            "try_buildbotbin": '.virtualenvs/buildbot/bin/buildbot'
+            "try_buildbotbin": '.virtualenvs/buildbot/bin/buildbot',
         })
         opts = self.parse()
-        exp = self.defaults_and(wait=True, quiet=True, connect='pb', host='h',
-                                jobdir='j', username='u', master='m:8', passwd='p', who='w',
-                                comment='comm', vc='cvs', branch='br', repository='rep',
-                                topfile='Makefile', topdir='.',
-                                buildbotbin='.virtualenvs/buildbot/bin/buildbot')
+        exp = self.defaults_and(
+            wait=True,
+            quiet=True,
+            connect='pb',
+            host='h',
+            jobdir='j',
+            username='u',
+            master='m:8',
+            passwd='p',
+            who='w',
+            comment='comm',
+            vc='cvs',
+            branch='br',
+            repository='rep',
+            topfile='Makefile',
+            topdir='.',
+            buildbotbin='.virtualenvs/buildbot/bin/buildbot',
+        )
         self.assertOptions(opts, exp)
 
     def test_pb_withNoMaster(self):
@@ -478,7 +510,6 @@ class TestTryOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
-
     master_and_who = ['-m', 'm:1', '-W', 'w']
 
     def setUp(self):
@@ -514,17 +545,16 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
             "when": None,
             "revlink": '',
             "encoding": 'utf8',
-            "files": ()
+            "files": (),
         }
         self.assertOptions(opts, exp)
 
     def test_files(self):
-        opts = self.parse(*self.master_and_who + ['a', 'b', 'c'])
+        opts = self.parse(*[*self.master_and_who, 'a', 'b', 'c'])
         self.assertEqual(opts['files'], ('a', 'b', 'c'))
 
     def test_properties(self):
-        opts = self.parse('--property', 'x:y', '--property', 'a:b',
-                          *self.master_and_who)
+        opts = self.parse('--property', 'x:y', '--property', 'a:b', *self.master_and_who)
         self.assertEqual(opts['properties'], {"x": 'y', "a": 'b'})
 
     def test_properties_with_colon(self):
@@ -542,8 +572,12 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
         self.assertOptions(opts, exp)
 
     def test_short_args(self):
-        opts = self.parse(*('-m m:1 -a a:b -W W -R r -P p -b b -s git ' +
-                            '-C c -r r -p pn:pv -c c -F f -w 123 -l l -e e').split())
+        opts = self.parse(
+            *(
+                '-m m:1 -a a:b -W W -R r -P p -b b -s git '
+                + '-C c -r r -p pn:pv -c c -F f -w 123 -l l -e e'
+            ).split()
+        )
         exp = {
             "master": 'm:1',
             "auth": ('a', 'b'),
@@ -559,15 +593,19 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
             "logfile": 'f',
             "when": 123.0,
             "revlink": 'l',
-            "encoding": 'e'
+            "encoding": 'e',
         }
         self.assertOptions(opts, exp)
 
     def test_long_args(self):
-        opts = self.parse(*('--master m:1 --auth a:b --who w --repository r ' +
-                            '--project p --branch b --category c --revision r --vc git ' +
-                            '--property pn:pv --comments c --logfile f ' +
-                            '--when 123 --revlink l --encoding e').split())
+        opts = self.parse(
+            *(
+                '--master m:1 --auth a:b --who w --repository r '
+                + '--project p --branch b --category c --revision r --vc git '
+                + '--property pn:pv --comments c --logfile f '
+                + '--when 123 --revlink l --encoding e'
+            ).split()
+        )
         exp = {
             "master": 'm:1',
             "auth": ('a', 'b'),
@@ -583,12 +621,12 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
             "logfile": 'f',
             "when": 123.0,
             "revlink": 'l',
-            "encoding": 'e'
+            "encoding": 'e',
         }
         self.assertOptions(opts, exp)
 
     def test_revision_file(self):
-        with open('revfile', 'wt', encoding='utf-8') as f:
+        with open('revfile', "w", encoding='utf-8') as f:
             f.write('my-rev')
         self.addCleanup(lambda: os.unlink('revfile'))
         opts = self.parse('--revision_file', 'revfile', *self.master_and_who)
@@ -599,12 +637,11 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
             self.parse('--when=foo', *self.master_and_who)
 
     def test_comments_overrides_logfile(self):
-        opts = self.parse('--logfile', 'logs', '--comments', 'foo',
-                          *self.master_and_who)
+        opts = self.parse('--logfile', 'logs', '--comments', 'foo', *self.master_and_who)
         self.assertOptions(opts, {"comments": 'foo'})
 
     def test_logfile(self):
-        with open('comments', 'wt', encoding='utf-8') as f:
+        with open('comments', "w", encoding='utf-8') as f:
             f.write('hi')
         self.addCleanup(lambda: os.unlink('comments'))
         opts = self.parse('--logfile', 'comments', *self.master_and_who)
@@ -631,7 +668,6 @@ class TestSendChangeOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestTryServerOptions(OptionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
 
@@ -655,7 +691,6 @@ class TestTryServerOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestCheckConfigOptions(OptionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
 
@@ -685,10 +720,8 @@ class TestCheckConfigOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestUserOptions(OptionsMixin, unittest.TestCase):
-
     # mandatory arguments
-    extra_args = ['--master', 'a:1',
-                  '--username', 'u', '--passwd', 'p']
+    extra_args = ['--master', 'a:1', '--username', 'u', '--passwd', 'p']
 
     def setUp(self):
         self.setUpOptions()
@@ -707,59 +740,60 @@ class TestUserOptions(OptionsMixin, unittest.TestCase):
         self.assertIn('buildbot user', opts.getSynopsis())
 
     def test_master(self):
-        opts = self.parse("--master", "abcd:1234",
-                          '--op=get', '--ids=x', '--username=u', '--passwd=p')
+        opts = self.parse(
+            "--master", "abcd:1234", '--op=get', '--ids=x', '--username=u', '--passwd=p'
+        )
         self.assertOptions(opts, {"master": 'abcd:1234'})
 
     def test_ids(self):
-        opts = self.parse("--ids", "id1,id2,id3",
-                          '--op', 'get', *self.extra_args)
+        opts = self.parse("--ids", "id1,id2,id3", '--op', 'get', *self.extra_args)
         self.assertEqual(opts['ids'], ['id1', 'id2', 'id3'])
 
     def test_info(self):
-        opts = self.parse("--info", "git=Tyler Durden <tyler@mayhem.net>",
-                          '--op', 'add', *self.extra_args)
-        self.assertEqual(opts['info'],
-                         [{"git": 'Tyler Durden <tyler@mayhem.net>'}])
+        opts = self.parse(
+            "--info", "git=Tyler Durden <tyler@mayhem.net>", '--op', 'add', *self.extra_args
+        )
+        self.assertEqual(opts['info'], [{"git": 'Tyler Durden <tyler@mayhem.net>'}])
 
     def test_info_only_id(self):
-        opts = self.parse("--info", "tdurden",
-                          '--op', 'update', *self.extra_args)
+        opts = self.parse("--info", "tdurden", '--op', 'update', *self.extra_args)
         self.assertEqual(opts['info'], [{"identifier": 'tdurden'}])
 
     def test_info_with_id(self):
-        opts = self.parse("--info", "tdurden:svn=marla",
-                          '--op', 'update', *self.extra_args)
-        self.assertEqual(
-            opts['info'], [{"identifier": 'tdurden', "svn": 'marla'}])
+        opts = self.parse("--info", "tdurden:svn=marla", '--op', 'update', *self.extra_args)
+        self.assertEqual(opts['info'], [{"identifier": 'tdurden', "svn": 'marla'}])
 
     def test_info_multiple(self):
-        opts = self.parse("--info", "git=Tyler Durden <tyler@mayhem.net>",
-                          "--info", "git=Narrator <narrator@mayhem.net>",
-                          '--op', 'add', *self.extra_args)
-        self.assertEqual(opts['info'],
-                         [{"git": 'Tyler Durden <tyler@mayhem.net>'},
-                          {"git": 'Narrator <narrator@mayhem.net>'}])
+        opts = self.parse(
+            "--info",
+            "git=Tyler Durden <tyler@mayhem.net>",
+            "--info",
+            "git=Narrator <narrator@mayhem.net>",
+            '--op',
+            'add',
+            *self.extra_args,
+        )
+        self.assertEqual(
+            opts['info'],
+            [{"git": 'Tyler Durden <tyler@mayhem.net>'}, {"git": 'Narrator <narrator@mayhem.net>'}],
+        )
 
     def test_config_user_params(self):
         self.options_file['user_master'] = 'mm:99'
         self.options_file['user_username'] = 'un'
         self.options_file['user_passwd'] = 'pw'
         opts = self.parse('--op', 'get', '--ids', 'x')
-        self.assertOptions(
-            opts, {"master": 'mm:99', "username": 'un', "passwd": 'pw'})
+        self.assertOptions(opts, {"master": 'mm:99', "username": 'un', "passwd": 'pw'})
 
     def test_config_master(self):
         self.options_file['master'] = 'mm:99'
-        opts = self.parse('--op', 'get', '--ids', 'x',
-                          '--username=u', '--passwd=p')
+        opts = self.parse('--op', 'get', '--ids', 'x', '--username=u', '--passwd=p')
         self.assertOptions(opts, {"master": 'mm:99'})
 
     def test_config_master_override(self):
         self.options_file['master'] = 'not seen'
         self.options_file['user_master'] = 'mm:99'
-        opts = self.parse('--op', 'get', '--ids', 'x',
-                          '--username=u', '--passwd=p')
+        opts = self.parse('--op', 'get', '--ids', 'x', '--username=u', '--passwd=p')
         self.assertOptions(opts, {"master": 'mm:99'})
 
     def test_invalid_info(self):
@@ -836,7 +870,6 @@ class TestUserOptions(OptionsMixin, unittest.TestCase):
 
 
 class TestOptions(OptionsMixin, misc.StdoutAssertionsMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpOptions()
         self.setUpStdoutAssertions()
@@ -865,12 +898,9 @@ class TestOptions(OptionsMixin, misc.StdoutAssertionsMixin, unittest.TestCase):
 
 
 class TestRun(unittest.TestCase):
-
     class MySubCommand(usage.Options):
         subcommandFunction = 'buildbot.test.unit.scripts.test_runner.subcommandFunction'
-        optFlags = [
-            ['loud', 'l', 'be noisy']
-        ]
+        optFlags = [['loud', 'l', 'be noisy']]
 
         def postOptions(self):
             if self['loud']:
@@ -878,13 +908,11 @@ class TestRun(unittest.TestCase):
 
     def setUp(self):
         # patch our subcommand in
-        self.patch(runner.Options, 'subCommands',
-                   [['my', None, self.MySubCommand, 'my, my']])
+        self.patch(runner.Options, 'subCommands', [['my', None, self.MySubCommand, 'my, my']])
 
         # and patch in the callback for it
         global subcommandFunction
-        subcommandFunction = mock.Mock(name='subcommandFunction',
-                                       return_value=3)
+        subcommandFunction = mock.Mock(name='subcommandFunction', return_value=3)
 
     def test_run_good(self):
         self.patch(sys, 'argv', ['buildbot', 'my'])

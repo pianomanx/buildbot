@@ -26,7 +26,7 @@ from twisted.python.failure import Failure
 from buildbot_worker.compat import unicode2bytes
 
 
-class FakeTransport(object):
+class FakeTransport:
     disconnecting = False
 
 
@@ -35,12 +35,11 @@ class WorkerTimeoutError(Exception):
 
 
 class TailProcess(protocol.ProcessProtocol):
-
     def outReceived(self, data):
         self.lw.dataReceived(unicode2bytes(data))
 
     def errReceived(self, data):
-        print("ERR: '{0}'".format(data))
+        print(f"ERR: '{data}'")
 
 
 class LogWatcher(LineOnlyReceiver):
@@ -72,10 +71,12 @@ class LogWatcher(LineOnlyReceiver):
             tailBin = "/bin/tail"
         else:
             tailBin = "/usr/bin/tail"
-        self.p = reactor.spawnProcess(self.pp, tailBin,
-                                      ("tail", "-f", "-n", "0", self.logfile),
-                                      env=os.environ,
-                                      )
+        self.p = reactor.spawnProcess(
+            self.pp,
+            tailBin,
+            ("tail", "-f", "-n", "0", self.logfile),
+            env=os.environ,
+        )
         self.running = True
         d = defer.maybeDeferred(self._start)
         return d

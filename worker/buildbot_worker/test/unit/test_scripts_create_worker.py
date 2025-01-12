@@ -23,7 +23,7 @@ from buildbot_worker.test.util import misc
 try:
     from unittest import mock
 except ImportError:
-    import mock
+    from unittest import mock
 
 
 def _regexp_path(name, *names):
@@ -56,17 +56,15 @@ class TestDefaultOptionsMixin:
         "maxretries": None,
         "connection-string": None,
         "proxy-connection-string": None,
-
         # arguments
         "host": "masterhost",
         "port": 1234,
         "name": "workername",
-        "passwd": "orange"
+        "passwd": "orange",
     }
 
 
 class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
-
     """
     Test buildbot_worker.scripts.create_worker._make_tac()
     """
@@ -88,13 +86,11 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
         # mock service.Application class
         application_mock = mock.Mock()
         application_class_mock = mock.Mock(return_value=application_mock)
-        self.patch(twisted.application.service, "Application",
-                   application_class_mock)
+        self.patch(twisted.application.service, "Application", application_class_mock)
 
         # mock logging stuff
         logfile_mock = mock.Mock()
-        self.patch(twisted.python.logfile.LogFile, "fromFullPath",
-                   logfile_mock)
+        self.patch(twisted.python.logfile.LogFile, "fromFullPath", logfile_mock)
 
         # mock Worker class
         worker_mock = mock.Mock()
@@ -129,19 +125,20 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
             delete_leftover_dirs=expected_args["delete-leftover-dirs"],
             connection_string=expected_args["connection-string"],
             proxy_connection_string=expected_args["proxy-connection-string"],
-            )
+        )
 
         # check that Worker instance attached to application
-        self.assertEqual(worker_mock.method_calls,
-                         [mock.call.setServiceParent(application_mock)])
+        self.assertEqual(worker_mock.method_calls, [mock.call.setServiceParent(application_mock)])
 
         # .tac file must define global variable "application", instance of
         # Application
-        self.assertTrue('application' in globals_dict,
-                        ".tac file doesn't define \"application\" variable")
-        self.assertTrue(globals_dict['application'] is application_mock,
-                        "defined \"application\" variable in .tac file is not "
-                        "Application instance")
+        self.assertTrue(
+            'application' in globals_dict, ".tac file doesn't define \"application\" variable"
+        )
+        self.assertTrue(
+            globals_dict['application'] is application_mock,
+            "defined \"application\" variable in .tac file is not Application instance",
+        )
 
     def test_default_tac_contents(self):
         """
@@ -191,8 +188,7 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
         test that using special characters in options strings won't break
         generated TAC file.
         """
-        test_string = ("\"\" & | ^ # @ \\& \\| \\^ \\# \\@ \\n"
-                       " \x07 \" \\\" ' \\' ''")
+        test_string = "\"\" & | ^ # @ \\& \\| \\^ \\# \\@ \\n \x07 \" \\\" ' \\' ''"
         options = self.options.copy()
         options["basedir"] = test_string
         options["host"] = test_string
@@ -227,8 +223,7 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
 
         tac_contents = create_worker._make_tac(options.copy())
 
-        self.assertIn("from twisted.python.logfile import LogFile",
-                      tac_contents)
+        self.assertIn("from twisted.python.logfile import LogFile", tac_contents)
         self.assert_tac_file_contents(tac_contents, options)
 
     def test_no_log_rotate(self):
@@ -241,8 +236,7 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
 
         tac_contents = create_worker._make_tac(options.copy())
 
-        self.assertNotIn("from twisted.python.logfile import LogFile",
-                         tac_contents)
+        self.assertNotIn("from twisted.python.logfile import LogFile", tac_contents)
         self.assert_tac_file_contents(tac_contents, options)
 
     def test_relocatable_true(self):
@@ -257,8 +251,7 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
 
         tac_contents = create_worker._make_tac(options.copy())
 
-        self.assert_tac_file_contents(tac_contents, options,
-                                   relocate=options["basedir"])
+        self.assert_tac_file_contents(tac_contents, options, relocate=options["basedir"])
 
         _relocate = os.path.join(os.getcwd(), "worker2")
         options["basedir"] = _relocate
@@ -276,8 +269,7 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
 
         tac_contents = create_worker._make_tac(options.copy())
 
-        self.assert_tac_file_contents(tac_contents, options,
-                                   relocate=options["basedir"])
+        self.assert_tac_file_contents(tac_contents, options, relocate=options["basedir"])
 
         _relocate = os.path.join(os.getcwd(), "worker2")
         self.assert_tac_file_contents(tac_contents, options, relocate=_relocate)
@@ -347,7 +339,6 @@ class TestMakeTAC(TestDefaultOptionsMixin, unittest.TestCase):
 
 
 class TestMakeBaseDir(misc.StdoutAssertionsMixin, unittest.TestCase):
-
     """
     Test buildbot_worker.scripts.create_worker._makeBaseDir()
     """
@@ -372,8 +363,7 @@ class TestMakeBaseDir(misc.StdoutAssertionsMixin, unittest.TestCase):
         # check that correct message was printed to stdout
         self.assertStdoutEqual("updating existing installation\n")
         # check that os.mkdir was not called
-        self.assertFalse(self.mkdir.called,
-                         "unexpected call to os.mkdir()")
+        self.assertFalse(self.mkdir.called, "unexpected call to os.mkdir()")
 
     def testBasedirExistsQuiet(self):
         """
@@ -388,8 +378,7 @@ class TestMakeBaseDir(misc.StdoutAssertionsMixin, unittest.TestCase):
         # check that nothing was printed to stdout
         self.assertWasQuiet()
         # check that os.mkdir was not called
-        self.assertFalse(self.mkdir.called,
-                         "unexpected call to os.mkdir()")
+        self.assertFalse(self.mkdir.called, "unexpected call to os.mkdir()")
 
     def testBasedirCreated(self):
         """
@@ -427,19 +416,16 @@ class TestMakeBaseDir(misc.StdoutAssertionsMixin, unittest.TestCase):
         self.patch(os.path, "exists", mock.Mock(return_value=False))
 
         # patch os.mkdir() to raise an exception
-        self.patch(os, "mkdir",
-                   mock.Mock(side_effect=OSError(0, "dummy-error")))
+        self.patch(os, "mkdir", mock.Mock(side_effect=OSError(0, "dummy-error")))
 
         # check that correct exception was raised
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                "error creating directory dummy: dummy-error"):
+        with self.assertRaisesRegex(
+            create_worker.CreateWorkerError, "error creating directory dummy"
+        ):
             create_worker._makeBaseDir("dummy", False)
 
 
-class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
-                          misc.FileIOMixin,
-                          unittest.TestCase):
-
+class TestMakeBuildbotTac(misc.StdoutAssertionsMixin, misc.FileIOMixin, unittest.TestCase):
     """
     Test buildbot_worker.scripts.create_worker._makeBuildbotTac()
     """
@@ -464,9 +450,8 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
         self.setUpOpenError()
 
         # call _makeBuildbotTac() and check that correct exception is raised
-        expected_message = "error reading {0}: dummy-msg".format(self.tac_file_path)
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                    expected_message):
+        expected_message = f"error reading {self.tac_file_path}"
+        with self.assertRaisesRegex(create_worker.CreateWorkerError, expected_message):
             create_worker._makeBuildbotTac("bdir", "contents", False)
 
     def testTacReadError(self):
@@ -478,9 +463,8 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
         self.setUpReadError()
 
         # call _makeBuildbotTac() and check that correct exception is raised
-        expected_message = "error reading {0}: dummy-msg".format(self.tac_file_path)
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                    expected_message):
+        expected_message = f"error reading {self.tac_file_path}"
+        with self.assertRaisesRegex(create_worker.CreateWorkerError, expected_message):
             create_worker._makeBuildbotTac("bdir", "contents", False)
 
     def testTacWriteError(self):
@@ -492,9 +476,8 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
         self.setUpWriteError(0)
 
         # call _makeBuildbotTac() and check that correct exception is raised
-        expected_message = "could not write {0}: dummy-msg".format(self.tac_file_path)
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                    expected_message):
+        expected_message = f"could not write {self.tac_file_path}"
+        with self.assertRaisesRegex(create_worker.CreateWorkerError, expected_message):
             create_worker._makeBuildbotTac("bdir", "contents", False)
 
     def checkTacFileCorrect(self, quiet):
@@ -512,15 +495,13 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
         create_worker._makeBuildbotTac("bdir", "test-tac-contents", quiet)
 
         # check that write() was not called
-        self.assertFalse(self.fileobj.write.called,
-                         "unexpected write() call")
+        self.assertFalse(self.fileobj.write.called, "unexpected write() call")
 
         # check output to stdout
         if quiet:
             self.assertWasQuiet()
         else:
-            self.assertStdoutEqual(
-                "buildbot.tac already exists and is correct\n")
+            self.assertStdoutEqual("buildbot.tac already exists and is correct\n")
 
     def testTacFileCorrect(self):
         """
@@ -552,8 +533,10 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
 
         # check that buildbot.tac.new file was created with expected contents
         tac_file_path = os.path.join("bdir", "buildbot.tac")
-        self.open.assert_has_calls([mock.call(tac_file_path, "rt"),
-                                    mock.call(tac_file_path + ".new", "wt")])
+        self.open.assert_has_calls([
+            mock.call(tac_file_path),
+            mock.call(tac_file_path + ".new", "w"),
+        ])
         self.fileobj.write.assert_called_once_with("new-tac-contents")
         self.chmod.assert_called_once_with(tac_file_path + ".new", 0o600)
 
@@ -561,8 +544,9 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
         if quiet:
             self.assertWasQuiet()
         else:
-            self.assertStdoutEqual("not touching existing buildbot.tac\n"
-                                   "creating buildbot.tac.new instead\n")
+            self.assertStdoutEqual(
+                "not touching existing buildbot.tac\ncreating buildbot.tac.new instead\n"
+            )
 
     def testDiffTacFile(self):
         """
@@ -591,15 +575,12 @@ class TestMakeBuildbotTac(misc.StdoutAssertionsMixin,
 
         # check that buildbot.tac file was created with expected contents
         tac_file_path = os.path.join("bdir", "buildbot.tac")
-        self.open.assert_called_once_with(tac_file_path, "wt")
+        self.open.assert_called_once_with(tac_file_path, "w")
         self.fileobj.write.assert_called_once_with("test-tac-contents")
         self.chmod.assert_called_once_with(tac_file_path, 0o600)
 
 
-class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
-                        misc.FileIOMixin,
-                        unittest.TestCase):
-
+class TestMakeInfoFiles(misc.StdoutAssertionsMixin, misc.FileIOMixin, unittest.TestCase):
     """
     Test buildbot_worker.scripts.create_worker._makeInfoFiles()
     """
@@ -622,16 +603,17 @@ class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
         self.patch(os, "mkdir", mock.Mock(side_effect=OSError(0, "err-msg")))
 
         # call _makeInfoFiles() and check that correct exception is raised
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                    "error creating directory {}: err-msg".format(
-                                            _regexp_path("bdir", "info"))):
+        with self.assertRaisesRegex(
+            create_worker.CreateWorkerError,
+            "error creating directory {}".format(_regexp_path("bdir", "info")),
+        ):
             create_worker._makeInfoFiles("bdir", quiet)
 
         # check output to stdout
         if quiet:
             self.assertWasQuiet()
         else:
-            self.assertStdoutEqual("mkdir {0}\n".format(os.path.join("bdir", "info")))
+            self.assertStdoutEqual("mkdir {}\n".format(os.path.join("bdir", "info")))
 
     def testMkdirError(self):
         """
@@ -663,16 +645,17 @@ class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
 
         # set-up requested IO error
         if error_type == "open":
-            self.setUpOpenError(strerror="info-err-msg")
+            self.setUpOpenError()
         elif error_type == "write":
-            self.setUpWriteError(strerror="info-err-msg")
+            self.setUpWriteError()
         else:
-            self.fail("unexpected error_type '{0}'".format(error_type))
+            self.fail(f"unexpected error_type '{error_type}'")
 
         # call _makeInfoFiles() and check that correct exception is raised
-        with self.assertRaisesRegex(create_worker.CreateWorkerError,
-                                    "could not write {0}: info-err-msg".format(
-                                    _regexp_path("bdir", "info", "admin"))):
+        with self.assertRaisesRegex(
+            create_worker.CreateWorkerError,
+            "could not write {}".format(_regexp_path("bdir", "info", "admin")),
+        ):
             create_worker._makeInfoFiles("bdir", quiet)
 
         # check output to stdout
@@ -681,7 +664,9 @@ class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
         else:
             self.assertStdoutEqual(
                 "Creating {}, you need to edit it appropriately.\n".format(
-                        os.path.join("info", "admin")))
+                    os.path.join("info", "admin")
+                )
+            )
 
     def testOpenError(self):
         """
@@ -730,29 +715,36 @@ class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
         mkdir_mock.assert_called_once_with(info_path)
 
         # check open() calls
-        self.open.assert_has_calls(
-            [mock.call(os.path.join(info_path, "admin"), "wt"),
-             mock.call(os.path.join(info_path, "host"), "wt")])
+        self.open.assert_has_calls([
+            mock.call(os.path.join(info_path, "admin"), "w"),
+            mock.call(os.path.join(info_path, "host"), "w"),
+        ])
 
         # check write() calls
-        self.fileobj.write.assert_has_calls(
-            [mock.call("Your Name Here <admin@youraddress.invalid>\n"),
-             mock.call("Please put a description of this build host here\n")])
+        self.fileobj.write.assert_has_calls([
+            mock.call("Your Name Here <admin@youraddress.invalid>\n"),
+            mock.call("Please put a description of this build host here\n"),
+        ])
 
         # check output to stdout
         if quiet:
             self.assertWasQuiet()
         else:
             self.assertStdoutEqual(
-                ("mkdir {}\n"
-                 "Creating {}, you need to edit it appropriately.\n"
-                 "Creating {}, you need to edit it appropriately.\n"
-                 "Not creating {} - add it if you wish\n"
-                 "Please edit the files in {} appropriately.\n").format(
-                info_path, os.path.join("info", "admin"),
-                os.path.join("info", "host"),
-                os.path.join("info", "access_uri"),
-                info_path))
+                (
+                    "mkdir {}\n"
+                    "Creating {}, you need to edit it appropriately.\n"
+                    "Creating {}, you need to edit it appropriately.\n"
+                    "Not creating {} - add it if you wish\n"
+                    "Please edit the files in {} appropriately.\n"
+                ).format(
+                    info_path,
+                    os.path.join("info", "admin"),
+                    os.path.join("info", "host"),
+                    os.path.join("info", "access_uri"),
+                    info_path,
+                )
+            )
 
     def testCreatedSuccessfully(self):
         """
@@ -780,9 +772,7 @@ class TestMakeInfoFiles(misc.StdoutAssertionsMixin,
         self.assertWasQuiet()
 
 
-class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin,
-                       unittest.TestCase):
-
+class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin, unittest.TestCase):
     """
     Test buildbot_worker.scripts.create_worker.createWorker()
     """
@@ -798,28 +788,20 @@ class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin,
         @param exception: if not None, the mocks will raise this exception.
         """
         self._makeBaseDir = mock.Mock(side_effect=exception)
-        self.patch(create_worker,
-                   "_makeBaseDir",
-                   self._makeBaseDir)
+        self.patch(create_worker, "_makeBaseDir", self._makeBaseDir)
 
         self._makeBuildbotTac = mock.Mock(side_effect=exception)
-        self.patch(create_worker,
-                   "_makeBuildbotTac",
-                   self._makeBuildbotTac)
+        self.patch(create_worker, "_makeBuildbotTac", self._makeBuildbotTac)
 
         self._makeInfoFiles = mock.Mock(side_effect=exception)
-        self.patch(create_worker,
-                   "_makeInfoFiles",
-                   self._makeInfoFiles)
+        self.patch(create_worker, "_makeInfoFiles", self._makeInfoFiles)
 
     def assertMakeFunctionsCalls(self, basedir, tac_contents, quiet):
         """
         assert that create_worker._make*() were called with specified arguments
         """
         self._makeBaseDir.assert_called_once_with(basedir, quiet)
-        self._makeBuildbotTac.assert_called_once_with(basedir,
-                                                      tac_contents,
-                                                      quiet)
+        self._makeBuildbotTac.assert_called_once_with(basedir, tac_contents, quiet)
         self._makeInfoFiles.assert_called_once_with(basedir, quiet)
 
     def testCreateError(self):
@@ -831,12 +813,10 @@ class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin,
         self.setUpMakeFunctions(create_worker.CreateWorkerError("err-msg"))
 
         # call createWorker() and check that we get error exit code
-        self.assertEqual(create_worker.createWorker(self.options), 1,
-                         "unexpected exit code")
+        self.assertEqual(create_worker.createWorker(self.options), 1, "unexpected exit code")
 
         # check that correct error message was printed on stdout
-        self.assertStdoutEqual("err-msg\n"
-                               "failed to configure worker in bdir\n")
+        self.assertStdoutEqual("err-msg\nfailed to configure worker in bdir\n")
 
     def testMinArgs(self):
         """
@@ -846,14 +826,13 @@ class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin,
         self.setUpMakeFunctions()
 
         # call createWorker() and check that we get success exit code
-        self.assertEqual(create_worker.createWorker(self.options), 0,
-                         "unexpected exit code")
+        self.assertEqual(create_worker.createWorker(self.options), 0, "unexpected exit code")
 
         # check _make*() functions were called with correct arguments
         expected_tac_contents = create_worker._make_tac(self.options.copy())
-        self.assertMakeFunctionsCalls(self.options["basedir"],
-                                      expected_tac_contents,
-                                      self.options["quiet"])
+        self.assertMakeFunctionsCalls(
+            self.options["basedir"], expected_tac_contents, self.options["quiet"]
+        )
 
         # check that correct info message was printed
         self.assertStdoutEqual("worker configured in bdir\n")
@@ -869,14 +848,11 @@ class TestCreateWorker(misc.StdoutAssertionsMixin, TestDefaultOptionsMixin,
         self.setUpMakeFunctions()
 
         # call createWorker() and check that we get success exit code
-        self.assertEqual(create_worker.createWorker(options), 0,
-                         "unexpected exit code")
+        self.assertEqual(create_worker.createWorker(options), 0, "unexpected exit code")
 
         # check _make*() functions were called with correct arguments
         expected_tac_contents = create_worker._make_tac(self.options)
-        self.assertMakeFunctionsCalls(options["basedir"],
-                                      expected_tac_contents,
-                                      options["quiet"])
+        self.assertMakeFunctionsCalls(options["basedir"], expected_tac_contents, options["quiet"])
 
         # there should be no output on stdout
         self.assertWasQuiet()

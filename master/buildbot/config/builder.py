@@ -18,7 +18,7 @@ from buildbot.config.checks import check_markdown_support
 from buildbot.config.checks import check_param_length
 from buildbot.config.checks import check_param_str_none
 from buildbot.config.errors import error
-from buildbot.db.model import Model
+from buildbot.db import model_config
 from buildbot.util import bytes2unicode
 from buildbot.util import config as util_config
 from buildbot.util import safeTranslate
@@ -27,15 +27,27 @@ RESERVED_UNDERSCORE_NAMES = ["__Janitor"]
 
 
 class BuilderConfig(util_config.ConfiguredMixin):
-
-    def __init__(self, name=None, workername=None, workernames=None,
-                 builddir=None, workerbuilddir=None, factory=None,
-                 tags=None,
-                 nextWorker=None, nextBuild=None, locks=None, env=None,
-                 properties=None, collapseRequests=None, description=None,
-                 description_format=None,
-                 canStartBuild=None, defaultProperties=None, project=None
-                 ):
+    def __init__(
+        self,
+        name=None,
+        workername=None,
+        workernames=None,
+        builddir=None,
+        workerbuilddir=None,
+        factory=None,
+        tags=None,
+        nextWorker=None,
+        nextBuild=None,
+        locks=None,
+        env=None,
+        properties=None,
+        collapseRequests=None,
+        description=None,
+        description_format=None,
+        canStartBuild=None,
+        defaultProperties=None,
+        project=None,
+    ):
         # name is required, and can't start with '_'
         if not name or type(name) not in (bytes, str):
             error("builder's name is required")
@@ -56,6 +68,7 @@ class BuilderConfig(util_config.ConfiguredMixin):
         if factory is None:
             error(f"builder '{name}' has no factory")
         from buildbot.process.factory import BuildFactory
+
         if factory is not None and not isinstance(factory, BuildFactory):
             error(f"builder '{name}'s factory is not a BuildFactory instance")
         self.factory = factory
@@ -72,8 +85,8 @@ class BuilderConfig(util_config.ConfiguredMixin):
 
         if workername:
             if not isinstance(workername, str):
-                error(f"builder '{name}': workername must be a string but it is {repr(workername)}")
-            workernames = workernames + [workername]
+                error(f"builder '{name}': workername must be a string but it is {workername!r}")
+            workernames = [*workernames, workername]
         if not workernames:
             error(f"builder '{name}': at least one workername is required")
 
@@ -94,7 +107,7 @@ class BuilderConfig(util_config.ConfiguredMixin):
         if tags:
             if not isinstance(tags, list):
                 error(f"builder '{name}': tags must be a list")
-            bad_tags = any((tag for tag in tags if not isinstance(tag, str)))
+            bad_tags = any(tag for tag in tags if not isinstance(tag, str))
             if bad_tags:
                 error(f"builder '{name}': tags list contains something that is not a string")
 
@@ -123,21 +136,23 @@ class BuilderConfig(util_config.ConfiguredMixin):
 
         self.properties = properties or {}
         for property_name in self.properties:
-            check_param_length(property_name, f'Builder {self.name} property',
-                               Model.property_name_length)
+            check_param_length(
+                property_name, f'Builder {self.name} property', model_config.property_name_length
+            )
 
         self.defaultProperties = defaultProperties or {}
         for property_name in self.defaultProperties:
-            check_param_length(property_name, f'Builder {self.name} default property',
-                               Model.property_name_length)
+            check_param_length(
+                property_name,
+                f'Builder {self.name} default property',
+                model_config.property_name_length,
+            )
 
         self.collapseRequests = collapseRequests
 
         self.description = check_param_str_none(description, self.__class__, "description")
         self.description_format = check_param_str_none(
-            description_format,
-            self.__class__,
-            "description_format"
+            description_format, self.__class__, "description_format"
         )
 
         if self.description_format is None:

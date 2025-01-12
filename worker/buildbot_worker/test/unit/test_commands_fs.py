@@ -31,12 +31,8 @@ from buildbot_worker.test.util.compat import skipUnlessPlatformIs
 
 
 class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_simple_real(self):
@@ -72,6 +68,7 @@ class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
 
         def fail(dir):
             raise RuntimeError("oh noes")
+
         self.patch(utils, 'rmdirRecursive', fail)
         self.make_command(fs.RemoveDirectory, {'paths': ['workdir']}, True)
         yield self.run_command()
@@ -105,7 +102,7 @@ class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
             .update('header', 'headers')
             .update('stdout', '')
             .update('rc', 0)
-            .exit(0)
+            .exit(0),
         )
 
         yield self.run_command()
@@ -134,7 +131,7 @@ class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
             .update('header', 'headers')
             .update('stdout', '')
             .update('rc', 0)
-            .exit(0)
+            .exit(0),
         )
 
         yield self.run_command()
@@ -163,7 +160,7 @@ class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
             .update('header', 'headers')
             .update('stdout', '')
             .update('rc', 1)
-            .exit(1)
+            .exit(1),
         )
 
         yield self.run_command()
@@ -173,12 +170,8 @@ class TestRemoveDirectory(CommandTestMixin, unittest.TestCase):
 
 
 class TestCopyDirectory(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_simple(self):
@@ -187,11 +180,12 @@ class TestCopyDirectory(CommandTestMixin, unittest.TestCase):
         self.make_command(fs.CopyDirectory, {'from_path': from_path, 'to_path': to_path}, True)
         yield self.run_command()
 
-        self.assertTrue(
-            os.path.exists(os.path.abspath(to_path)))
-        self.assertIn(('rc', 0),  # this may ignore a 'header' : '..', which is OK
-                      self.get_updates(),
-                      self.protocol_command.show())
+        self.assertTrue(os.path.exists(os.path.abspath(to_path)))
+        self.assertIn(
+            ('rc', 0),  # this may ignore a 'header' : '..', which is OK
+            self.get_updates(),
+            self.protocol_command.show(),
+        )
 
     @defer.inlineCallbacks
     def test_simple_exception(self):
@@ -200,6 +194,7 @@ class TestCopyDirectory(CommandTestMixin, unittest.TestCase):
 
         def fail(src, dest):
             raise RuntimeError("oh noes")
+
         self.patch(shutil, 'copytree', fail)
 
         from_path = os.path.join(self.basedir, 'workdir')
@@ -207,18 +202,12 @@ class TestCopyDirectory(CommandTestMixin, unittest.TestCase):
         self.make_command(fs.CopyDirectory, {'from_path': from_path, 'to_path': to_path}, True)
         yield self.run_command()
 
-        self.assertIn(('rc', -1),
-                      self.get_updates(),
-                      self.protocol_command.show())
+        self.assertIn(('rc', -1), self.get_updates(), self.protocol_command.show())
 
 
 class TestMakeDirectory(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_empty_paths(self):
@@ -249,8 +238,9 @@ class TestMakeDirectory(CommandTestMixin, unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_already_exists(self):
-        self.make_command(fs.MakeDirectory, {'paths': [os.path.join(self.basedir, 'workdir')]},
-                          True)
+        self.make_command(
+            fs.MakeDirectory, {'paths': [os.path.join(self.basedir, 'workdir')]}, True
+        )
         yield self.run_command()
 
         self.assertUpdates([('rc', 0)], self.protocol_command.show())
@@ -268,12 +258,8 @@ class TestMakeDirectory(CommandTestMixin, unittest.TestCase):
 
 
 class TestStatFile(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_non_existent(self):
@@ -320,12 +306,8 @@ class TestStatFile(CommandTestMixin, unittest.TestCase):
 
 
 class TestGlobPath(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_non_existent(self):
@@ -361,26 +343,18 @@ class TestGlobPath(CommandTestMixin, unittest.TestCase):
             pass
 
         yield self.run_command()
-        if sys.version_info[:] >= (3, 5):
-            if sys.platform == 'win32':
-                filename = 'test\\testdir\\test.txt'
-            else:
-                filename = 'test/testdir/test.txt'
-
-            self.assertEqual(
-                self.get_updates()[0][1], [os.path.join(self.basedir, filename)])
+        if sys.platform == 'win32':
+            filename = 'test\\testdir\\test.txt'
         else:
-            self.assertEqual(self.get_updates()[0][1], [])
+            filename = 'test/testdir/test.txt'
+
+        self.assertEqual(self.get_updates()[0][1], [os.path.join(self.basedir, filename)])
         self.assertIn(('rc', 0), self.get_updates(), self.protocol_command.show())
 
 
 class TestListDir(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_non_existent(self):
@@ -410,18 +384,18 @@ class TestListDir(CommandTestMixin, unittest.TestCase):
 
         self.assertIn(('rc', 0), self.get_updates(), self.protocol_command.show())
 
-        self.assertTrue(any('files' in upd and sorted(upd[1]) == ['file1', 'file2']
-            for upd in self.get_updates()),
-            self.protocol_command.show())
+        self.assertTrue(
+            any(
+                'files' in upd and sorted(upd[1]) == ['file1', 'file2']
+                for upd in self.get_updates()
+            ),
+            self.protocol_command.show(),
+        )
 
 
 class TestRemoveFile(CommandTestMixin, unittest.TestCase):
-
     def setUp(self):
         self.setUpCommand()
-
-    def tearDown(self):
-        self.tearDownCommand()
 
     @defer.inlineCallbacks
     def test_simple(self):
@@ -434,9 +408,11 @@ class TestRemoveFile(CommandTestMixin, unittest.TestCase):
         yield self.run_command()
 
         self.assertFalse(os.path.exists(file1_path))
-        self.assertIn(('rc', 0),  # this may ignore a 'header' : '..', which is OK
-                      self.get_updates(),
-                      self.protocol_command.show())
+        self.assertIn(
+            ('rc', 0),  # this may ignore a 'header' : '..', which is OK
+            self.get_updates(),
+            self.protocol_command.show(),
+        )
 
     @defer.inlineCallbacks
     def test_simple_exception(self):

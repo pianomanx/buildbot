@@ -13,27 +13,32 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from twisted.internet import defer
 
 from buildbot.data import base
 from buildbot.data import types
 
+if TYPE_CHECKING:
+    from buildbot.db.projects import ProjectModel
 
-def project_db_to_data(dbdict, active=None):
+
+def project_db_to_data(model: ProjectModel, active=None):
     return {
-        "projectid": dbdict["id"],
-        "name": dbdict["name"],
-        "slug": dbdict["slug"],
-        "description": dbdict["description"],
-        "description_format": dbdict["description_format"],
-        "description_html": dbdict["description_html"],
+        "projectid": model.id,
+        "name": model.name,
+        "slug": model.slug,
+        "description": model.description,
+        "description_format": model.description_format,
+        "description_html": model.description_html,
         "active": active,
     }
 
 
 class ProjectEndpoint(base.BuildNestingMixin, base.Endpoint):
-
     kind = base.EndpointKind.SINGLE
     pathPatterns = """
         /projects/n:projectid
@@ -53,7 +58,6 @@ class ProjectEndpoint(base.BuildNestingMixin, base.Endpoint):
 
 
 class ProjectsEndpoint(base.Endpoint):
-
     kind = base.EndpointKind.COLLECTION
     rootLinkName = 'projects'
     pathPatterns = """
@@ -71,28 +75,19 @@ class ProjectsEndpoint(base.Endpoint):
             # This is not optimized case which is assumed to be infrequently required
             dbdicts_all = yield self.master.db.projects.get_projects()
             dbdicts_active = yield self.master.db.projects.get_active_projects()
-            ids_active = set(dbdict["id"] for dbdict in dbdicts_active)
-            dbdicts = [
-                dbdict for dbdict in dbdicts_all
-                if dbdict["id"] not in ids_active
-            ]
+            ids_active = set(dbdict.id for dbdict in dbdicts_active)
+            dbdicts = [dbdict for dbdict in dbdicts_all if dbdict.id not in ids_active]
 
         return [project_db_to_data(dbdict, active=active) for dbdict in dbdicts]
 
-    def get_kwargs_from_graphql(self, parent, resolve_info, args):
-        return {}
-
 
 class Project(base.ResourceType):
-
     name = "project"
     plural = "projects"
     endpoints = [ProjectEndpoint, ProjectsEndpoint]
-    keyField = 'projectid'
     eventPathPatterns = """
         /projects/:projectid
     """
-    subresources = ["Builder"]
 
     class EntityType(types.Entity):
         projectid = types.Integer()
@@ -102,7 +97,8 @@ class Project(base.ResourceType):
         description = types.NoneOk(types.String())
         description_format = types.NoneOk(types.String())
         description_html = types.NoneOk(types.String())
-    entityType = EntityType(name, 'Project')
+
+    entityType = EntityType(name)
 
     @defer.inlineCallbacks
     def generate_event(self, _id, event):
@@ -116,18 +112,9 @@ class Project(base.ResourceType):
     @base.updateMethod
     @defer.inlineCallbacks
     def update_project_info(
-        self,
-        projectid,
-        slug,
-        description,
-        description_format,
-        description_html
+        self, projectid, slug, description, description_format, description_html
     ):
         yield self.master.db.projects.update_project_info(
-            projectid,
-            slug,
-            description,
-            description_format,
-            description_html
+            projectid, slug, description, description_format, description_html
         )
         yield self.generate_event(projectid, "update")

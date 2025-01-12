@@ -22,7 +22,6 @@ from buildbot.data import types
 
 
 class BuildsetPropertiesEndpoint(base.Endpoint):
-
     kind = base.EndpointKind.SINGLE
     pathPatterns = """
         /buildsets/n:bsid/properties
@@ -33,23 +32,21 @@ class BuildsetPropertiesEndpoint(base.Endpoint):
 
 
 class BuildPropertiesEndpoint(base.Endpoint):
-
     kind = base.EndpointKind.SINGLE
     pathPatterns = """
         /builders/n:builderid/builds/n:build_number/properties
         /builds/n:buildid/properties
     """
 
+    @defer.inlineCallbacks
     def get(self, resultSpec, kwargs):
-        buildid = kwargs.get("buildid", None)
-        if buildid is None:
-            # fixme: this cannot work...
-            buildid = kwargs.get("build_number")
-        return self.master.db.builds.getBuildProperties(buildid)
+        retriever = base.NestedBuildDataRetriever(self.master, kwargs)
+        buildid = yield retriever.get_build_id()
+        build_properties = yield self.master.db.builds.getBuildProperties(buildid)
+        return build_properties
 
 
 class PropertiesListEndpoint(base.Endpoint):
-
     kind = base.EndpointKind.COLLECTION
     pathPatterns = """
         /builds/n:buildid/property_list
@@ -93,21 +90,17 @@ class PropertiesListEndpoint(base.Endpoint):
 
 
 class Property(base.ResourceType):
-
     name = "_property"
     plural = "_properties"
     endpoints = [PropertiesListEndpoint]
-    keyField = "name"
 
-    entityType = types.PropertyEntityType(name, 'Property')
+    entityType = types.PropertyEntityType(name)
 
 
 class Properties(base.ResourceType):
-
     name = "property"
     plural = "properties"
     endpoints = [BuildsetPropertiesEndpoint, BuildPropertiesEndpoint]
-    keyField = "name"
 
     entityType = types.SourcedProperties()
 
@@ -135,14 +128,12 @@ class Properties(base.ResourceType):
 
         if to_update:
             for k, v in to_update.items():
-                yield self.master.db.builds.setBuildProperty(
-                    buildid, k, v[0], v[1])
+                yield self.master.db.builds.setBuildProperty(buildid, k, v[0], v[1])
             yield self.generateUpdateEvent(buildid, to_update)
 
     @base.updateMethod
     @defer.inlineCallbacks
     def setBuildProperty(self, buildid, name, value, source):
-        res = yield self.master.db.builds.setBuildProperty(
-            buildid, name, value, source)
+        res = yield self.master.db.builds.setBuildProperty(buildid, name, value, source)
         yield self.generateUpdateEvent(buildid, {"name": (value, source)})
         return res

@@ -16,7 +16,6 @@
 import hashlib
 
 import sqlalchemy as sa
-
 from twisted.trial import unittest
 
 from buildbot.test.util import migration
@@ -24,32 +23,35 @@ from buildbot.util import sautils
 
 
 class Migration(migration.MigrateTestMixin, unittest.TestCase):
-
     def setUp(self):
         return self.setUpMigrateTest()
-
-    def tearDown(self):
-        return self.tearDownMigrateTest()
 
     def create_tables_thd(self, conn):
         metadata = sa.MetaData()
         metadata.bind = conn
 
         builders = sautils.Table(
-            'builders', metadata,
+            'builders',
+            metadata,
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text, nullable=False),
             sa.Column('description', sa.Text, nullable=True),
             sa.Column('name_hash', sa.String(40), nullable=False),
         )
-        builders.create()
+        builders.create(bind=conn)
 
-        conn.execute(builders.insert(), [{
-            "id": 3,
-            "name": "foo",
-            "description": "foo_description",
-            "name_hash": hashlib.sha1(b'foo').hexdigest()
-        }])
+        conn.execute(
+            builders.insert(),
+            [
+                {
+                    "id": 3,
+                    "name": "foo",
+                    "description": "foo_description",
+                    "name_hash": hashlib.sha1(b'foo').hexdigest(),
+                }
+            ],
+        )
+        conn.commit()
 
     def test_update(self):
         def setup_thd(conn):
@@ -60,22 +62,22 @@ class Migration(migration.MigrateTestMixin, unittest.TestCase):
             metadata.bind = conn
 
             # check that projects table has been added
-            projects = sautils.Table('projects', metadata, autoload=True)
+            projects = sautils.Table('projects', metadata, autoload_with=conn)
 
-            q = sa.select([
+            q = sa.select(
                 projects.c.id,
                 projects.c.name,
                 projects.c.name_hash,
                 projects.c.slug,
                 projects.c.description,
-            ])
+            )
             self.assertEqual(conn.execute(q).fetchall(), [])
 
             # check that builders.projectid has been added
-            builders = sautils.Table('builders', metadata, autoload=True)
+            builders = sautils.Table('builders', metadata, autoload_with=conn)
             self.assertIsInstance(builders.c.projectid.type, sa.Integer)
 
-            q = sa.select([builders.c.name, builders.c.projectid])
+            q = sa.select(builders.c.name, builders.c.projectid)
             num_rows = 0
             for row in conn.execute(q):
                 # verify that the default value was set correctly

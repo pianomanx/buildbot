@@ -50,7 +50,7 @@ Because this image may need updating a lot, we strongly suggest scripting its cr
 If you want to have multiple workers using the same base image it can be annoying to duplicate the image just to change the buildbot credentials.
 One option is to use libvirt's DHCP server to allocate an identity to the worker: DHCP sets a hostname, and the worker takes its identity from that.
 
-Doing all this is really beyond the scope of the manual, but there is a :contrib-src:`vmbuilder <master/contrib/libvirt/vmbuilder>` script and a :contrib-src:`network.xml <master/contrib/libvirt/network.xml>` file to create such a DHCP server in :contrib-src:`master/contrib/` (:ref:`Contrib-Scripts`) that should get you started:
+Doing all this is really beyond the scope of the manual, but there is a :src:`vmbuilder <master/contrib/libvirt/vmbuilder>` script and a :src:`network.xml <master/contrib/libvirt/network.xml>` file to create such a DHCP server in :src:`master/contrib/` (:ref:`Contrib-Scripts`) that should get you started:
 
 .. code-block:: bash
 
@@ -99,9 +99,6 @@ If you don't, buildbot won't be able to find a VM to start.
 
 ``password``
     A password for the buildbot to login to the master with.
-
-``connection``
-    :class:`Connection` instance wrapping connection to libvirt. (deprecated, use ``uri``).
 
 ``hd_image``
     The path to a libvirt disk image, normally in qcow2 format when using KVM.

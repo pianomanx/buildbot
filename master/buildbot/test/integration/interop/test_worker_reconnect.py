@@ -12,7 +12,7 @@
 # Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # Copyright Buildbot Team Members
-
+from __future__ import annotations
 
 from twisted.internet import defer
 
@@ -22,7 +22,7 @@ from buildbot.test.util.integration import RunMasterBase
 
 
 class DisconnectingStep(BuildStep):
-    disconnection_list = []
+    disconnection_list: list[DisconnectingStep] = []
 
     def run(self):
         self.disconnection_list.append(self)
@@ -34,6 +34,7 @@ class DisconnectingStep(BuildStep):
 
 class WorkerReconnectPb(RunMasterBase):
     """integration test for testing worker disconnection and reconnection"""
+
     proto = "pb"
 
     @defer.inlineCallbacks
@@ -45,14 +46,12 @@ class WorkerReconnectPb(RunMasterBase):
 
         c['schedulers'] = [
             schedulers.AnyBranchScheduler(name="sched", builderNames=["testy"]),
-            schedulers.ForceScheduler(name="force", builderNames=["testy"])
+            schedulers.ForceScheduler(name="force", builderNames=["testy"]),
         ]
 
         f = BuildFactory()
         f.addStep(DisconnectingStep())
-        c['builders'] = [
-            BuilderConfig(name="testy", workernames=["local1"], factory=f)
-        ]
+        c['builders'] = [BuilderConfig(name="testy", workernames=["local1"], factory=f)]
         yield self.setup_master(c)
 
     @defer.inlineCallbacks

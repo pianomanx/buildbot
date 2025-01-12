@@ -13,8 +13,10 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
 import copy
-import json
+from typing import TYPE_CHECKING
 
 from twisted.internet import defer
 from twisted.python import log
@@ -27,26 +29,38 @@ from buildbot.process.users import users
 from buildbot.util import datetime2epoch
 from buildbot.util import epoch2datetime
 
+if TYPE_CHECKING:
+    from buildbot.db.changes import ChangeModel
+
 
 class FixerMixin:
-
     @defer.inlineCallbacks
-    def _fixChange(self, change, is_graphql):
+    def _fixChange(self, model: ChangeModel):
         # TODO: make these mods in the DB API
-        if change:
-            change = change.copy()
-            change['when_timestamp'] = datetime2epoch(change['when_timestamp'])
-            if is_graphql:
-                props = change['properties']
-                change['properties'] = [
-                    {'name': k, 'source': v[1], 'value': json.dumps(v[0])}
-                    for k, v in props.items()
-                ]
-            else:
-                sskey = ('sourcestamps', str(change['sourcestampid']))
-                change['sourcestamp'] = yield self.master.data.get(sskey)
-                del change['sourcestampid']
-        return change
+        data = {
+            'changeid': model.changeid,
+            'author': model.author,
+            'committer': model.committer,
+            'comments': model.comments,
+            'branch': model.branch,
+            'revision': model.revision,
+            'revlink': model.revlink,
+            'when_timestamp': datetime2epoch(model.when_timestamp),
+            'category': model.category,
+            'parent_changeids': model.parent_changeids,
+            'repository': model.repository,
+            'codebase': model.codebase,
+            'project': model.project,
+            'files': model.files,
+        }
+
+        sskey = ('sourcestamps', str(model.sourcestampid))
+        assert hasattr(self, "master"), "FixerMixin requires a master attribute"
+        data['sourcestamp'] = yield self.master.data.get(sskey)
+        data['properties'] = model.properties
+
+        return data
+
     fieldMapping = {
         'author': 'changes.author',
         'branch': 'changes.branch',
@@ -65,20 +79,20 @@ class FixerMixin:
 
 
 class ChangeEndpoint(FixerMixin, base.Endpoint):
-
     kind = base.EndpointKind.SINGLE
     pathPatterns = """
         /changes/n:changeid
     """
 
+    @defer.inlineCallbacks
     def get(self, resultSpec, kwargs):
-        d = self.master.db.changes.getChange(kwargs['changeid'])
-        d.addCallback(self._fixChange, is_graphql='graphql' in kwargs)
-        return d
+        change = yield self.master.db.changes.getChange(kwargs['changeid'])
+        if change is None:
+            return None
+        return (yield self._fixChange(change))
 
 
 class ChangesEndpoint(FixerMixin, base.BuildNestingMixin, base.Endpoint):
-
     kind = base.EndpointKind.COLLECTION
     pathPatterns = """
         /changes
@@ -94,6 +108,7 @@ class ChangesEndpoint(FixerMixin, base.BuildNestingMixin, base.Endpoint):
         if 'build_number' in kwargs:
             buildid = yield self.getBuildid(kwargs)
         ssid = kwargs.get('ssid')
+        changes = []
         if buildid is not None:
             changes = yield self.master.db.changes.getChangesForBuild(buildid)
         elif ssid is not None:
@@ -108,20 +123,17 @@ class ChangesEndpoint(FixerMixin, base.BuildNestingMixin, base.Endpoint):
                 changes = yield self.master.db.changes.getChanges(resultSpec=resultSpec)
         results = []
         for ch in changes:
-            results.append((yield self._fixChange(ch, is_graphql='graphql' in kwargs)))
+            results.append((yield self._fixChange(ch)))
         return results
 
 
 class Change(base.ResourceType):
-
     name = "change"
     plural = "changes"
     endpoints = [ChangeEndpoint, ChangesEndpoint]
     eventPathPatterns = """
         /changes/:changeid
     """
-    keyField = "changeid"
-    subresources = ["Build", "Property"]
 
     class EntityType(types.Entity):
         changeid = types.Integer()
@@ -140,14 +152,29 @@ class Change(base.ResourceType):
         project = types.String()
         codebase = types.String()
         sourcestamp = sourcestamps.SourceStamp.entityType
-    entityType = EntityType(name, 'Change')
+
+    entityType = EntityType(name)
 
     @base.updateMethod
     @defer.inlineCallbacks
-    def addChange(self, files=None, comments=None, author=None, committer=None, revision=None,
-                  when_timestamp=None, branch=None, category=None, revlink='',
-                  properties=None, repository='', codebase=None, project='',
-                  src=None):
+    def addChange(
+        self,
+        files=None,
+        comments=None,
+        author=None,
+        committer=None,
+        revision=None,
+        when_timestamp=None,
+        branch=None,
+        category=None,
+        revlink='',
+        properties=None,
+        repository='',
+        codebase=None,
+        project='',
+        src=None,
+        _test_changeid=None,
+    ):
         metrics.MetricCountEvent.log("added_changes", 1)
 
         if properties is None:
@@ -159,8 +186,7 @@ class Change(base.ResourceType):
         # get a user id
         if src:
             # create user object, returning a corresponding uid
-            uid = yield users.createUserObject(self.master,
-                                               author, src)
+            uid = yield users.createUserObject(self.master, author, src)
         else:
             uid = None
 
@@ -169,34 +195,37 @@ class Change(base.ResourceType):
             revlink = self.master.config.revlink(revision, repository) or ''
 
         if callable(category):
-            pre_change = self.master.config.preChangeGenerator(author=author,
-                                                               committer=committer,
-                                                               files=files,
-                                                               comments=comments,
-                                                               revision=revision,
-                                                               when_timestamp=when_timestamp,
-                                                               branch=branch,
-                                                               revlink=revlink,
-                                                               properties=properties,
-                                                               repository=repository,
-                                                               project=project)
+            pre_change = self.master.config.preChangeGenerator(
+                author=author,
+                committer=committer,
+                files=files,
+                comments=comments,
+                revision=revision,
+                when_timestamp=when_timestamp,
+                branch=branch,
+                revlink=revlink,
+                properties=properties,
+                repository=repository,
+                project=project,
+            )
             category = category(pre_change)
 
         # set the codebase, either the default, supplied, or generated
-        if codebase is None \
-                and self.master.config.codebaseGenerator is not None:
-            pre_change = self.master.config.preChangeGenerator(author=author,
-                                                               committer=committer,
-                                                               files=files,
-                                                               comments=comments,
-                                                               revision=revision,
-                                                               when_timestamp=when_timestamp,
-                                                               branch=branch,
-                                                               category=category,
-                                                               revlink=revlink,
-                                                               properties=properties,
-                                                               repository=repository,
-                                                               project=project)
+        if codebase is None and self.master.config.codebaseGenerator is not None:
+            pre_change = self.master.config.preChangeGenerator(
+                author=author,
+                committer=committer,
+                files=files,
+                comments=comments,
+                revision=revision,
+                when_timestamp=when_timestamp,
+                branch=branch,
+                category=category,
+                revlink=revlink,
+                properties=properties,
+                repository=repository,
+                project=project,
+            )
             codebase = self.master.config.codebaseGenerator(pre_change)
             codebase = str(codebase)
         else:
@@ -217,7 +246,9 @@ class Change(base.ResourceType):
             repository=repository,
             codebase=codebase,
             project=project,
-            uid=uid)
+            uid=uid,
+            _test_changeid=_test_changeid,
+        )
 
         # get the change and munge the result for the notification
         change = yield self.master.data.get(('changes', str(changeid)))

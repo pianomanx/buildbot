@@ -17,7 +17,6 @@ from buildbot_worker.test.util import command
 
 
 class SourceCommandTestMixin(command.CommandTestMixin):
-
     """
     Support for testing Source Commands; an extension of CommandTestMixin
     """
@@ -42,13 +41,15 @@ class SourceCommandTestMixin(command.CommandTestMixin):
 
         def readSourcedata():
             if self.sourcedata is None:
-                raise IOError("File not found")
+                raise OSError("File not found")
             return self.sourcedata
+
         cmd.readSourcedata = readSourcedata
 
         def writeSourcedata(res):
             self.sourcedata = cmd.sourcedata
             return res
+
         cmd.writeSourcedata = writeSourcedata
 
     def check_sourcedata(self, _, expected_sourcedata):

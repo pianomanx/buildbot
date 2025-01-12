@@ -9,6 +9,9 @@ jobs:
       # use the same build image as we use for metabuildbot
       - image: buildbot/metabbotcfg
     working_directory: ~/repo
+    environment:
+      # Needed to ignore specific warns, otherwise, it'll warn a generic message
+      SQLALCHEMY_WARN_20: 1
 
     steps:
       - checkout
@@ -16,7 +19,7 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - 37-dependencies-{{ checksum "requirements-ci.txt" }}-{{ checksum "requirements-cidocs.txt" }}
+            - 37-dependencies-{{ checksum "requirements-ci.txt" }}-{{ checksum "requirements-cidocs.txt" }}-{{ checksum "requirements-pip.txt" }}
             # fallback to using the latest cache if no exact match is found
             - 37-dependencies-
 
@@ -26,24 +29,24 @@ jobs:
             env
             python3.8 -m venv .venv
             . .venv/bin/activate
-            pip install -U pip setuptools wheel
+            pip install -r requirements-pip.txt
             pip install -r requirements-ci.txt
             pip install -r requirements-cidocs.txt
-            pip install pyinstaller
+            pip install pyinstaller==6.9.0
 
       - save_cache:
           paths:
             - .venv
-          key: 3-dependencies-{{ checksum "requirements-ci.txt" }}-{{ checksum "requirements-cidocs.txt" }}
+          key: 3-dependencies-{{ checksum "requirements-ci.txt" }}-{{ checksum "requirements-cidocs.txt" }}-{{ checksum "requirements-pip.txt" }}
       - run:
           name: run tests
           command: |
             . .venv/bin/activate
             make docs-release
             make tarballs
-            # Note that installing www/react-base depends on frontend_deps target being built, which is
+            # Note that installing www/base depends on frontend_deps target being built, which is
             # a dependency of the tarballs target.
-            pip install -e www/react-base
+            pip install -e www/base
             pyinstaller pyinstaller/buildbot-worker.spec
             # we test the new generated binary with the global virtualenv
             SANDBOXED_WORKER_PATH=`pwd`/dist/buildbot-worker trial --reporter=text --rterrors buildbot.test.integration.interop

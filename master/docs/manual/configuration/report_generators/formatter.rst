@@ -43,18 +43,9 @@ The constructor of the class takes the following arguments:
 ``want_properties``
     This parameter (defaults to True) will extend the content of the given ``build`` object with the Properties from the build.
 
-``wantProperties``
-    Deprecated, use ``want_properties`` set to the same value.
-
 ``want_steps``
     This parameter (defaults to False) will extend the content of the given ``build`` object with information about the steps of the build.
     Use it only when necessary as this increases the overhead in terms of CPU and memory on the master.
-
-``wantSteps``
-    Deprecated, use ``want_steps`` set to the same value.
-
-``wantLogs``
-    Deprecated, use ``want_logs`` and ``want_logs_content`` set to the same value.
 
 ``want_logs``
     This parameter (defaults to False) will extend the content of the steps of the given ``build`` object with the log metadata of each steps from the build.
@@ -62,14 +53,31 @@ The constructor of the class takes the following arguments:
     Use it only when mandatory, as this greatly increases the overhead in terms of CPU and memory on the master.
 
 ``want_logs_content``
-    This parameter (defaults to False) will extend the content of the logs with the log contents of each steps from the build.
-    This implies ``want_logs`` and ``wantSteps`` to be `True`.
-    Use it only when mandatory, as this greatly increases the overhead in terms of CPU and memory on the master.
+    This parameter (defaults to ``False``) controls whether to include log content together with log
+    metadata as controlled by ``want_logs``.
 
-Context
-~~~~~~~
+    ``False`` disables log content inclusion. ``True`` enables log content inclusion for all logs.
+    A list of strings specifies which logs to include. The logs can be included by name; or
+    by step name and log name separated by dot character. If log name is specified, logs with
+    that name will be included regardless of the step it is in. If both step and log names
+    are specified, then logs with that name will be included only from the specific step.
 
-The context that is given to the template consists of the following data:
+    ``want_logs_content`` being not ``False`` implies ``want_logs=True`` and ``want_steps=True``.
+
+    Enabling `want_logs_content` dumps the *full* content of logs and may consume lots of
+    memory and CPU depending on the log size.
+
+``extra_info_cb``
+    This parameter (defaults to ``None``) can be used to customize extra information that is passed
+    to reporters. If set, this argument must be a function that returns a dictionary of
+    dictionaries either directly or via a ``Deferred``. The interpretation of the return value
+    depends on the exact reporter being used.
+
+Context (build)
+~~~~~~~~~~~~~~~
+
+In the case the message formatter is used to create message for a build the context that is given
+to the template consists of the following data:
 
 ``results``
     The results of the build as an integer.
@@ -162,6 +170,54 @@ The context that is given to the template consists of the following data:
 
 ``sourcestamps``
     A string identifying the source stamps for which the build was made.
+
+Context (buildset)
+~~~~~~~~~~~~~~~~~~
+
+In the case the message formatter is used to create message for an buildset itself (see
+``BuildSetCombinedStatusGenerator``), the context that is given to the template consists of the
+following data:
+
+``results``
+    The results of the buildset as an integer.
+    Equivalent to ``build['results']``.
+
+``result_names``
+    A collection that allows accessing a textual identifier of build result.
+    The intended usage is ``result_names[results]``.
+
+    The following are possible values: ``success``, ``warnings``, ``failure``, ``skipped``, ``exception``, ``retry``, ``cancelled``.
+
+``mode``
+    The mode argument that has been passed to the report generator.
+
+``buildset``
+    The :bb:rtype:`buildset` dictionary from data API.
+
+``builds``
+    A list of  :bb:rtype:`build` dictionaries from data API. The builds are part of the buildset
+    that is being formatted.
+
+``is_buildset``
+    Always ``True``.
+
+``projects``
+    A string identifying the projects that the buildset was built for.
+
+``status_detected``
+    String that describes the build in terms of current buildset results, previous build results and ``mode``.
+
+``buildbot_title``
+    The title of the Buildbot instance as per ``c['title']`` from the ``master.cfg``
+
+``buildbot_url``
+    The URL of the Buildbot instance as per ``c['buildbotURL']`` from the ``master.cfg``
+
+``blamelist``
+    The list of users responsible for the buildset.
+
+``sourcestamps``
+    A string identifying the source stamps for which the buildset was made.
 
 Examples
 ~~~~~~~~

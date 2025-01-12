@@ -306,12 +306,11 @@ Three basic settings describe the buildmaster in status reports:
 
 :bb:cfg:`title` is a short string that will appear at the top of this buildbot installation's home page (linked to the :bb:cfg:`titleURL`).
 
-:bb:cfg:`titleURL` is a URL string that must end with a slash (``/``).
+:bb:cfg:`titleURL` is a URL string.
 HTML status displays will show ``title`` as a link to :bb:cfg:`titleURL`.
 This URL is often used to provide a link from buildbot HTML pages to your project's home page.
 
 The :bb:cfg:`buildbotURL` string should point to the location where the buildbot's internal web server is visible.
-This URL must end with a slash (``/``).
 
 When status notices are sent to users (e.g., by email or over IRC), :bb:cfg:`buildbotURL` will be used to create a URL to the specific build or problem that they are being notified about.
 
@@ -338,7 +337,8 @@ The default value is 4096, which should be a reasonable default on most file sys
 This setting has no impact on status plugins, and merely affects the required disk space on the master for build logs.
 
 The :bb:cfg:`logCompressionMethod` controls what type of compression is used for build logs.
-The default is 'gz', and the other valid option are 'raw' (no compression), 'gz' or 'lz4' (required lz4 package).
+Valid option are 'raw' (no compression), 'gz', 'lz4' (required lz4 package), 'br' (requires buildbot[brotli] extra) or 'zstd' (requires buildbot[zstd] extra).
+The default is 'zstd' if the ``buildbot[zstd]`` is installed, otherwise defaults to 'gz'.
 
 Please find below some stats extracted from 50x "trial Pyflakes" runs (results may differ according to log type).
 
@@ -355,7 +355,7 @@ Any output exceeding :bb:cfg:`logMaxSize` will be truncated, and a message to th
 
 If :bb:cfg:`logMaxSize` is set, and the output from a step exceeds the maximum, the :bb:cfg:`logMaxTailSize` parameter controls how much of the end of the build log will be kept.
 The effect of setting this parameter is that the log will contain the first :bb:cfg:`logMaxSize` bytes and the last :bb:cfg:`logMaxTailSize` bytes of output.
-Don't set this value too high, as the the tail of the log is kept in memory.
+Don't set this value too high, as the tail of the log is kept in memory.
 
 The :bb:cfg:`logEncoding` parameter specifies the character encoding to use to decode bytestrings provided as logs.
 It defaults to ``utf-8``, which should work in most cases, but can be overridden if necessary.
@@ -511,33 +511,49 @@ with the same results.
 
 .. bb:cfg:: protocols
 
-.. _Setting-the-PB-Port-for-Workers:
+Configuring worker protocols
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Setting the PB Port for Workers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``protocols`` key defines how buildmaster listens to connections from workers. The value of
+the key is dictionary with keys being protocol names and values being per-protocol configuration.
+
+The following protocols are supported:
+
+- ``pb`` - Perspective Broker protocol. This protocol supports not only connections from workers,
+  but also remote Change Sources, status clients and debug tools. It supports the following
+  configuration:
+
+    - ``port`` - specifies the listening port configuration. This may be a numeric port, or
+      a *connection string*, as defined in the ConnectionStrings_ guide.
+
+- ``msgpack_experimental_v7`` - (experimental) MessagePack-based protocol. It supports the
+  following configuration:
+
+    - ``port`` - specifies the listening port configuration. This may be a numeric port, or
+      a *connection string*, as defined in the ConnectionStrings_ guide.
+
+.. note::
+
+    Note, that the master host must be visible to all workers that would attempt to connect to it.
+    The firewall (if any) must be configured to allow external connections. Additionally, the
+    configured listen port must be larger than 1024 in most cases, as lower ports are usually
+    restricted to root processes only.
+
+The following is a minimal example of protocol configuration:
 
 .. code-block:: python
 
     c['protocols'] = {"pb": {"port": 10000}}
 
-The buildmaster will listen on a TCP port of your choosing for connections from workers.
-It can also use this port for connections from remote Change Sources, status clients, and debug tools.
-This port should be visible to the outside world, and you'll need to tell your worker admins about your choice.
-
-It does not matter which port you pick, as long it is externally visible; however, you should probably use something larger than 1024, since most operating systems don't allow non-root processes to bind to low-numbered ports.
-If your buildmaster is behind a firewall or a NAT box of some sort, you may have to configure your firewall to permit inbound connections to this port.
-
-``c['protocols']['pb']['port']`` can also be used as a *connection string*, as defined in the ConnectionStrings_ guide.
-
-This means that you can have the buildmaster listen on a localhost-only port by doing:
+The following example only allows connections from localhost. This might be useful in cases workers
+are run on the same machine as master (e.g. in very small Buildbot installations). The workers would
+need to be configured to contact the buildmaster at ``localhost:10000``.
 
 .. code-block:: python
 
-   c['protocols'] = {"pb": {"port": "tcp:10000:interface=127.0.0.1"}}
+    c['protocols'] = {"pb": {"port": "tcp:10000:interface=127.0.0.1"}}
 
-This might be useful if you only run workers on the same machine, and they are all configured to contact the buildmaster at ``localhost:10000``.
-
-*connection strings* can also be used to configure workers connecting over TLS. The syntax is then
+The following example shows how to configure worker connections via TLS:
 
 .. code-block:: python
 

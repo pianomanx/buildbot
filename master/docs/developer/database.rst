@@ -77,6 +77,14 @@ The DB Connector and Components
     If you are adding a new connector component, import its module and create
     an instance of it in this class's constructor.
 
+    .. py:method:: run_db_task(deferred_task: defer.Deferred) -> None
+
+        For use when the deferred resulting from a DB operation is not awaited.
+        If a function that will run DB operation is not awaited, a shutdown of the master could
+        sever the connection to the database before the function completes.
+        To avoid this issue, register the deferred to the connector so it can properly await it's
+        completion in such cases.
+
 .. py:module:: buildbot.db.base
 
 .. py:class:: DBConnectorComponent
@@ -138,7 +146,7 @@ A connector method should look like this::
 
 Picking that apart, the body of the method defines a function named ``thd``
 taking one argument, a :class:`Connection
-<sqlalchemy:sqlalchemy.engine.base.Connection>` object.  It then calls
+<sqlalchemy:sqlalchemy.future.engine.Connection>` object.  It then calls
 ``self.db.pool.do``, passing the ``thd`` function.  This function is called in
 a thread, and can make blocking calls to SQLAlchemy as desired.  The ``do``
 method will return a Deferred that will fire with the return value of ``thd``,
@@ -283,24 +291,6 @@ this::
                 return thdict
             return self.db.pool.do(thd)
 
-Tests
-~~~~~
-
-It goes without saying that any new connector methods must be fully tested!
-
-You will also want to add an in-memory implementation of the methods to the
-fake classes in ``master/buildbot/test/fake/fakedb.py``.  Non-DB Buildbot code
-is tested using these fake implementations in order to isolate that code from
-the database code, and to speed-up tests.
-
-The keys and types used in the return value from a connector's ``get`` methods are described in :src:`master/buildbot/test/util/validation.py`, via the ``dbdict`` module-level value.
-This is a dictionary of ``DictValidator`` objects, one for each return value.
-
-These values are used within test methods like this::
-
-    rv = yield self.db.masters.getMaster(7)
-    validation.verifyDbDict(self, 'masterdict', rv)
-
 .. _Modifying-the-Database-Schema:
 
 Modifying the Database Schema
@@ -339,14 +329,6 @@ Foreign key checking
 --------------------
 PostgreSQL and SQlite db backends check the foreign keys consistency.
 :bug:`2248` needs to be fixed so that we can support foreign key checking for MySQL.
-
-To maintain consistency with real db, fakedb can check the foreign key consistency of your test data. For this, just enable it with::
-
-    self.db = fakedb.FakeDBConnector(self.master, self)
-    self.db.checkForeignKeys = True
-
-Note that tests that only use fakedb do not really need foreign key consistency, even if this is a good practice to enable it in new code.
-
 
 .. note:
 

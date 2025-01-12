@@ -464,22 +464,25 @@ It's often necessary to perform some action in response to a particular type of 
 For example, steps need to update their status after updates arrive from the worker.
 However, when many events arrive in quick succession, it's more efficient to only perform the action once, after the last event has occurred.
 
-The ``debounce.method(wait)`` decorator is the tool for the job.
+The ``debounce.method(wait, until_idle=False)`` decorator is the tool for the job.
 
-.. py:function:: method(wait, get_reactor)
+.. py:function:: method(wait, until_idle=False, get_reactor)
 
     :param wait: time to wait before invoking, in seconds
+    :param until_idle: resets the timer on every call
     :param get_reactor: A callable that takes the underlying instance and returns the reactor to use. Defaults to ``instance.master.reactor``.
 
     Returns a decorator that debounces the underlying method.
     The underlying method must take no arguments (except ``self``).
 
-    For each call to the decorated method, the underlying method will be invoked at least once within *wait* seconds (plus the time the method takes to execute).
-    Calls are "debounced" during that time, meaning that multiple calls to the decorated method will result in a single invocation.
+    Calls are "debounced", meaning that multiple calls to the decorated method will result in a single invocation.
 
-    .. note::
+    When `until_idle` is `True`, the underlying method will be called after *wait* seconds have elapsed since the last time the decorated method have been called.
+    In case of constant stream, it will never be called.
 
-        This functionality is similar to Underscore's ``debounce``, except that the Underscore method resets its timer on every call.
+    When `until_idle` is `False`, the underlying method will be called after *wait* seconds have elapsed since the first time the decorated method have been called.
+    In case of constant stream, it will called about once every *wait* seconds (plus the time the method takes to execute)
+
 
     The decorated method is an instance of :py:class:`Debouncer`, allowing it to be started and stopped.
     This is useful when the method is a part of a Buildbot service: call ``method.start()`` from ``startService`` and ``method.stop()`` from ``stopService``, handling its Deferred appropriately.
@@ -850,43 +853,25 @@ This module makes it easy to manipulate identifiers.
     This class accepts a sequence of arbitrary strings and computes newline-terminated substrings.
     Input strings are accepted in append function, and newline-terminated substrings are returned.
 
-    Alternatively, a callback maybe provided into class constructor.
-    This callback is invoked with complete (newline-terminated) substrings.
-    This method of returning results is deprecated.
-
     The class buffers any partial lines until a subsequent newline is seen.
     It considers any of ``\r``, ``\n``, and ``\r\n`` to be newlines.
     Because of the ambiguity of an append operation ending in the character ``\r`` (it may be a bare ``\r`` or half of ``\r\n``), the last line of such an append operation will be buffered until the next append or flush.
 
-    :param callback: (optional and deprecated) asynchronous function to call with newline-terminated strings
-
     .. py:method:: append(text)
 
         :param text: text to append to the boundary finder
-        :returns: Deferred (deprecated) or newline-terminated substring
+        :returns: a newline-terminated substring or None
 
         Add additional text to the boundary finder.
         If the addition of this text completes at least one line, as many complete lines as possible are selected as a result.
         If no lines are completed, the result will be ``None``.
 
-        If the class constructor did not receive ``callback`` argument, then result is returned.
-        Otherwise, if result is not ``None``, ``callback`` will be invoked with it.
-        Otherwise, ``defer.succeed(None)`` is returned.
-
-
     .. py:method:: flush()
 
-        :returns: Deferred (deprecated), newline-terminated substring or None
+        :returns: a newline-terminated substring or None
 
         Flush any remaining partial line by adding a newline.
 
-        Function works differently depending on whether class constructor received ``callback`` argument.
-
-        If ``callback`` was not received, and  there was a remaining partial line, its result is returned.
-        Otherwise, ``None`` is returned.
-
-        If ``callback`` was received, and there was a remaining partial line, callback is invoked with it.
-        Otherwise, ``defer.succeed(None)`` is returned.
 
 :py:mod:`buildbot.util.service`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1213,6 +1198,91 @@ For example, a particular daily scheduler could be configured on multiple master
 
         This should *not* be overridden by subclasses, as they should rather override checkConfig.
 
+        This function has been deprecated. Please use ``HTTPSession``.
+
+
+    .. py:method:: get(endpoint, params=None)
+
+        :param endpoint: endpoint. It must either be a full URL (starts with ``http://`` or ``https://``) or relative to the base_url (starts with ``/``)
+        :param params: optional dictionary that will be encoded in the query part of the url (e.g. ``?param1=foo``)
+        :returns: implementation of :`IHTTPResponse` via deferred
+
+        Performs a HTTP ``GET``. This function has been deprecated. Please use ``HTTPSession``.
+
+
+    .. py:method:: delete(endpoint, params=None)
+
+        :param endpoint: endpoint. It must either be a full URL (starts with ``http://`` or ``https://``) or relative to the base_url (starts with ``/``)
+        :param params: optional dictionary that will be encoded in the query part of the url (e.g. ``?param1=foo``)
+        :returns: implementation of :`IHTTPResponse` via deferred
+
+        Performs a HTTP ``DELETE``. This function has been deprecated. Please use ``HTTPSession``.
+
+    .. py:method:: post(endpoint, data=None, json=None, params=None)
+
+        :param endpoint: endpoint. It must either be a full URL (starts with ``http://`` or ``https://``) or relative to the base_url (starts with ``/``)
+        :param data: optional dictionary that will be encoded in the body of the http requests as ``application/x-www-form-urlencoded``
+        :param json: optional dictionary that will be encoded in the body of the http requests as ``application/json``
+        :param params: optional dictionary that will be encoded in the query part of the url (e.g. ``?param1=foo``)
+        :returns: implementation of :`IHTTPResponse` via deferred
+
+        Performs a HTTP ``POST``. This function has been deprecated. Please use ``HTTPSession``.
+
+        .. note::
+
+            json and data cannot be used at the same time.
+
+    .. py:method:: put(endpoint, data=None, json=None, params=None)
+
+        :param endpoint: endpoint. It must either be a full URL (starts with ``http://`` or ``https://``) or relative to the base_url (starts with ``/``)
+        :param data: optional dictionary that will be encoded in the body of the http requests as ``application/x-www-form-urlencoded``
+        :param json: optional dictionary that will be encoded in the body of the http requests as ``application/json``
+        :param params: optional dictionary that will be encoded in the query part of the url (e.g. ``?param1=foo``)
+        :returns: implementation of :`IHTTPResponse` via deferred
+
+        Performs a HTTP ``PUT``. This function has been deprecated. Please use ``HTTPSession``.
+
+        .. note::
+
+            json and data cannot be used at the same time.
+
+    .. py:method:: update_headers(headers)
+
+        :param headers: dictionary of string key-value pairs containing headers to add to the
+            session.
+
+        Adds or updates the session with the given headers. All subsequent HTTP requests will
+        contain the additional headers specified in this call.
+
+.. py:class:: HTTPSession
+
+    A class that encapsulates certain parameters of connection to HTTP URLs and allows to perform
+    connections to them.
+
+    Example usage in a service.
+
+    .. code-block:: python
+
+        s = HTTPSession(self.master.httpservice, "https://api.github.com")
+        r = await s.get("/repos/buildbot/buildbot/releases")
+        print(r.json())
+
+    Usually ``HTTPSession`` is used by creating an instance of it in service constructor and reusing
+    it throughout the life of the service.
+
+    .. py:method:: __init__(http: HTTPClientService, base_url: str, auth=None, headers=None, debug=None, verify=None)
+
+        :param http: the instance of HTTPClientService to use. It is available as
+            ``self.master.httpservice`` for all the :py:class:`BuildbotService` instances.
+        :param base_url: The base http url of the server to access. e.g. ``http://github.com/``
+        :param auth: Authentication information. If auth is a tuple then ``BasicAuth`` will be used. e.g ``('user', 'passwd')``
+            It can also be a :mod:`requests.auth` authentication plugin.
+            In this case `txrequests`_ will be forced, and `treq`_ cannot be used.
+        :param headers: The headers to pass to every requests for this url
+        :param debug: log every requests and every response.
+        :param verify: disable the SSL verification.
+
+        Creates a ``HTTPSession`` instance.
 
     .. py:method:: get(endpoint, params=None)
 
@@ -1303,7 +1373,6 @@ For example, a particular daily scheduler could be configured on multiple master
     It implements the same APIs as :class:`buildbot.util.httpclientservice.HTTPClientService`, plus one that should be used to register the expectations.
     It should be registered by the test case before the tested service actually requests an HTTPClientService instance, with the same parameters.
     It will then replace the original implementation automatically (no need to patch anything).
-    The testing methodology is based on `AngularJS ngMock`_.
 
     .. py:method:: getService(cls, master, case, *args, **kwargs)
 
@@ -1315,7 +1384,7 @@ For example, a particular daily scheduler could be configured on multiple master
         It will make sure the original :py:class:`HTTPClientService` is not called, and assert that all expected http requests have been described in the test case.
 
 
-    .. py:method:: expect(self, method, ep, params=None, data=None, json=None, code=200, content=None, content_json=None)
+    .. py:method:: expect(self, method, ep, params=None, data=None, json=None, code=200, content=None, content_json=None, processing_delay_s=None)
 
         :param method: expected HTTP method
         :param ep: expected endpoint
@@ -1325,6 +1394,7 @@ For example, a particular daily scheduler could be configured on multiple master
         :param code: optional http code that will be received
         :param content: optional content that will be received
         :param content_json: optional content encoded in json that will be received
+        :param processing_delay_s: optional delay that the handling of the request will take
 
         Records an expectation of HTTP requests that will happen during the test.
         The order of the requests is important.
@@ -1342,13 +1412,13 @@ For example, a particular daily scheduler could be configured on multiple master
             from buildbot.util import service
 
 
-            class myTestedService(service.BuildbotService):
+            class MyTestedService(service.BuildbotService):
                 name = 'myTestedService'
 
                 @defer.inlineCallbacks
                 def reconfigService(self, baseurl):
-                    self._http = yield httpclientservice.HTTPClientService.getService(
-                        self.master, baseurl)
+                    self._http = yield httpclientservice.HTTPSession(
+                        self.master.httpservice, baseurl)
 
                 @defer.inlineCallbacks
                 def doGetRoot(self):
@@ -1362,32 +1432,32 @@ For example, a particular daily scheduler could be configured on multiple master
                     return res_json
 
 
-            class Test(unittest.SynchronousTestCase):
+            class Test(unittest.TestCase):
 
+                @defer.inlineCallbacks
                 def setUp(self):
                     baseurl = 'http://127.0.0.1:8080'
                     self.parent = service.MasterService()
-                    self._http = self.successResultOf(
-                        fakehttpclientservice.HTTPClientService.getService(self.parent, self,
-                                                                           baseurl))
+                    self._http = \
+                        yield fakehttpclientservice.HTTPClientService.getService(self.parent, self,
+                                                                                 baseurl))
                     self.tested = myTestedService(baseurl)
 
-                    self.successResultOf(self.tested.setServiceParent(self.parent))
-                    self.successResultOf(self.parent.startService())
+                    yield self.tested.setServiceParent(self.parent)
+                    yield self.parent.startService()
 
                 def test_root(self):
                     self._http.expect("get", "/", content_json={'foo': 'bar'})
 
-                    response = self.successResultOf(self.tested.doGetRoot())
+                    response = yield self.tested.doGetRoot()
                     self.assertEqual(response, {'foo': 'bar'})
 
                 def test_root_error(self):
                     self._http.expect("get", "/", content_json={'foo': 'bar'}, code=404)
 
-                    response = self.failureResultOf(self.tested.doGetRoot())
-                    self.assertEqual(response.getErrorMessage(), '404: server did not succeed')
-
-.. _AngularJS ngMock: https://docs.angularjs.org/api/ngMock/service/$httpBackend
+                    with self.assertRaises(RuntimeError) as e:
+                        yield self.tested.doGetRoot()
+                    self.assertIn('404: server did not succeed', str(e.exception))
 
 :py:mod:`buildbot.util.ssl`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -120,9 +120,9 @@ Reuse same image for different workers
 
 Previous simple example hardcodes the worker name into the dockerfile, which will not work if you want to share your docker image between workers.
 
-You can find in buildbot source code in :contrib-src:`master/contrib/docker` one example configurations:
+You can find in buildbot source code in :src:`master/contrib/docker` one example configurations:
 
-:contrib-src:`pythonnode_worker <master/contrib/docker/pythonnode_worker/>`
+:src:`pythonnode_worker <master/contrib/docker/pythonnode_worker/>`
     a worker with Python and node installed, which demonstrate how to reuse the base worker to create variations of build environments.
     It is based on the official ``buildbot/buildbot-worker`` image.
 
@@ -231,6 +231,11 @@ In addition to the arguments available for any :ref:`Latent-Workers`, :class:`Do
     Address of the master the worker should connect to. Use if you master machine does not have proper fqdn.
     This value is passed to the docker image via environment variable ``BUILDMASTER``
 
+``master_protocol``
+    (optional, default to ``pb``)
+    Protocol that the worker should use when connecting to master. Supported values are ``pb`` and
+    ``msgpack_experimental_v7``.
+
 ``hostconfig``
     (renderable dictionary, optional)
     Extra host configuration parameters passed as a dictionary used to create HostConfig object.
@@ -271,8 +276,6 @@ Marathon latent worker
 Marathon_ Marathon is a production-grade container orchestration platform for Mesosphere's Data-center Operating System (DC/OS) and Apache ``Mesos``.
 
 Buildbot supports using Marathon_ to host your latent workers.
-It requires either `txrequests`_ or `treq`_ to be installed to allow interaction with http server.
-See :class:`HTTPClientService` for details.
 
 .. py:class:: buildbot.worker.marathon.MarathonLatentWorker
 .. py:class:: buildbot.plugins.worker.MarathonLatentWorker
@@ -319,7 +322,6 @@ In addition to the arguments available for any :ref:`Latent-Workers`, :class:`Ma
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Marathon API: http://mesosphere.github.io/marathon/docs/rest-api.html#post-v2-apps
 .. _txrequests: https://pypi.python.org/pypi/txrequests
-.. _treq: https://pypi.python.org/pypi/treq
 .. _requests authentication plugin: https://2.python-requests.org/en/master/user/authentication/
 
 Kubernetes latent worker
@@ -364,6 +366,11 @@ In addition to the arguments available for any :ref:`Latent-Workers`, :class:`Ku
     Address of the master the worker should connect to. Put the service master service name if you want to place a load-balancer between the workers and the masters.
     The default behaviour is to compute address IP of the master. This option works out-of-the box inside kubernetes but don't leverage the load-balancing through service.
     You can pass any callable, such as ``KubeLatentWorker.get_fqdn`` that will set ``masterFQDN=socket.getfqdn()``.
+
+``master_protocol``
+    (optional, default to ``pb``)
+    Protocol that the worker should use when connecting to master. Supported values are ``pb`` and
+    ``msgpack_experimental_v7``.
 
 For more customization, you can subclass :class:`KubeLatentWorker` and override following methods.
 All those methods can optionally return a deferred.

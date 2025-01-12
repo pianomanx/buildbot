@@ -13,6 +13,8 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
 import multiprocessing
 import os.path
 import socket
@@ -22,7 +24,6 @@ import time
 from twisted.application import service
 from twisted.internet import defer
 from twisted.internet import reactor
-from twisted.python import failure
 from twisted.python import log
 from twisted.spread import pb
 
@@ -39,9 +40,21 @@ class UnknownCommand(pb.Error):
 
 
 class ProtocolCommandBase:
-    def __init__(self, unicode_encoding, worker_basedir, buffer_size, buffer_timeout,
-                 max_line_length, newline_re, builder_is_running, on_command_complete,
-                 on_lost_remote_step, command, command_id, args):
+    def __init__(
+        self,
+        unicode_encoding,
+        worker_basedir,
+        buffer_size,
+        buffer_timeout,
+        max_line_length,
+        newline_re,
+        builder_is_running,
+        on_command_complete,
+        on_lost_remote_step,
+        command,
+        command_id,
+        args,
+    ):
         self.unicode_encoding = unicode_encoding
         self.worker_basedir = worker_basedir
         self.buffer_size = buffer_size
@@ -57,27 +70,30 @@ class ProtocolCommandBase:
 
         try:
             factory = registry.getFactory(command)
-        except KeyError:
-            raise UnknownCommand(u"(command {0}): unrecognized WorkerCommand '{1}'".format(
-                command_id, command))
+        except KeyError as e:
+            raise UnknownCommand(
+                f"(command {command_id}): unrecognized WorkerCommand '{command}'"
+            ) from e
 
         # .command points to a WorkerCommand instance, and is set while the step is running.
         self.command = factory(self, command_id, args)
         self._lbfs = {}
-        self.buffer = buffer_manager.BufferManager(reactor, self.protocol_send_update_message,
-                                                   self.buffer_size, self.buffer_timeout)
+        self.buffer = buffer_manager.BufferManager(
+            reactor, self.protocol_send_update_message, self.buffer_size, self.buffer_timeout
+        )
 
         self.is_complete = False
 
     def log_msg(self, msg):
-        log.msg(u"(command {0}): {1}".format(self.command_id, msg))
+        log.msg(f"(command {self.command_id}): {msg}")
 
     def split_lines(self, stream, text, text_time):
         try:
             return self._lbfs[stream].append(text, text_time)
         except KeyError:
-            lbf = self._lbfs[stream] = lineboundaries.LineBoundaryFinder(self.max_line_length,
-                                                                         self.newline_re)
+            lbf = self._lbfs[stream] = lineboundaries.LineBoundaryFinder(
+                self.max_line_length, self.newline_re
+            )
             return lbf.append(text, text_time)
 
     def flush_command_output(self):
@@ -119,13 +135,13 @@ class ProtocolCommandBase:
                     self.buffer.append(key, value)
 
     def _ack_failed(self, why, where):
-        self.log_msg("ProtocolCommandBase._ack_failed: {0}".format(where))
+        self.log_msg(f"ProtocolCommandBase._ack_failed: {where}")
         log.err(why)  # we don't really care
 
     # this is fired by the Deferred attached to each Command
     def command_complete(self, failure):
         if failure:
-            self.log_msg("ProtocolCommandBase.command_complete (failure) {0}".format(self.command))
+            self.log_msg(f"ProtocolCommandBase.command_complete (failure) {self.command}")
             log.err(failure)
             # failure, if present, is a failure.Failure. To send it across
             # the wire, we must turn it into a pb.CopyableFailure.
@@ -133,7 +149,7 @@ class ProtocolCommandBase:
             failure.unsafeTracebacks = True
         else:
             # failure is None
-            self.log_msg("ProtocolCommandBase.command_complete (success) {0}".format(self.command))
+            self.log_msg(f"ProtocolCommandBase.command_complete (success) {self.command}")
 
         self.on_command_complete()
         if not self.builder_is_running:
@@ -146,14 +162,14 @@ class ProtocolCommandBase:
 
 
 class WorkerForBuilderBase(service.Service):
-    ProtocolCommand = ProtocolCommandBase
+    ProtocolCommand: type[ProtocolCommandBase] = ProtocolCommandBase
 
 
 class BotBase(service.MultiService):
-
     """I represent the worker-side bot."""
-    name = "bot"
-    WorkerForBuilder = WorkerForBuilderBase
+
+    name: str | None = "bot"  # type: ignore[assignment]
+    WorkerForBuilder: type[WorkerForBuilderBase] = WorkerForBuilderBase
 
     os_release_file = "/etc/os-release"
 
@@ -161,8 +177,7 @@ class BotBase(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = basedir
         self.numcpus = None
-        self.unicode_encoding = unicode_encoding or sys.getfilesystemencoding(
-        ) or 'ascii'
+        self.unicode_encoding = unicode_encoding or sys.getfilesystemencoding() or 'ascii'
         self.delete_leftover_dirs = delete_leftover_dirs
         self.builders = {}
         # Don't send any data until at least buffer_size bytes have been collected
@@ -181,10 +196,7 @@ class BotBase(service.MultiService):
         service.MultiService.startService(self)
 
     def remote_getCommands(self):
-        commands = {
-            n: base.command_version
-            for n in registry.getAllCommandNames()
-        }
+        commands = {n: base.command_version for n in registry.getAllCommandNames()}
         return commands
 
     def remote_print(self, message):
@@ -195,7 +207,7 @@ class BotBase(service.MultiService):
         if not os.path.exists(os_release_file):
             return
 
-        with open(os_release_file, "r") as fin:
+        with open(os_release_file) as fin:
             for line in fin:
                 line = line.strip("\r\n")
                 # as per man page: Lines beginning with "#" shall be ignored as comments.
@@ -204,7 +216,7 @@ class BotBase(service.MultiService):
                 # parse key-values
                 key, value = line.split("=", 1)
                 if value:
-                    key = 'os_{}'.format(key.lower())
+                    key = f'os_{key.lower()}'
                     props[key] = value.strip('"')
 
     def remote_getWorkerInfo(self):
@@ -221,12 +233,11 @@ class BotBase(service.MultiService):
             for f in os.listdir(basedir):
                 filename = os.path.join(basedir, f)
                 if os.path.isfile(filename):
-                    with open(filename, "r") as fin:
+                    with open(filename) as fin:
                         try:
                             files[f] = bytes2unicode(fin.read())
-                        except UnicodeDecodeError:
-                            log.err(failure.Failure(),
-                                    'error while reading file: %s' % (filename))
+                        except UnicodeDecodeError as e:
+                            log.err(e, f'error while reading file: {filename}')
 
         self._read_os_release(self.os_release_file, files)
 
@@ -234,8 +245,9 @@ class BotBase(service.MultiService):
             try:
                 self.numcpus = multiprocessing.cpu_count()
             except NotImplementedError:
-                log.msg("warning: could not detect the number of CPUs for "
-                        "this worker. Assuming 1 CPU.")
+                log.msg(
+                    "warning: could not detect the number of CPUs for this worker. Assuming 1 CPU."
+                )
                 self.numcpus = 1
         files['environ'] = os.environ.copy()
         files['system'] = os.name
@@ -261,23 +273,27 @@ class BotBase(service.MultiService):
 
 
 class WorkerBase(service.MultiService):
-
-    def __init__(self, name, basedir, bot_class,
-                 umask=None,
-                 unicode_encoding=None,
-                 delete_leftover_dirs=False):
-
+    def __init__(
+        self,
+        name,
+        basedir,
+        bot_class,
+        umask=None,
+        unicode_encoding=None,
+        delete_leftover_dirs=False,
+    ):
         service.MultiService.__init__(self)
         self.name = name
-        bot = bot_class(basedir, unicode_encoding=unicode_encoding,
-                       delete_leftover_dirs=delete_leftover_dirs)
+        bot = bot_class(
+            basedir, unicode_encoding=unicode_encoding, delete_leftover_dirs=delete_leftover_dirs
+        )
         bot.setServiceParent(self)
         self.bot = bot
         self.umask = umask
         self.basedir = basedir
 
     def startService(self):
-        log.msg("Starting Worker -- version: {0}".format(buildbot_worker.version))
+        log.msg(f"Starting Worker -- version: {buildbot_worker.version}")
 
         if self.umask is not None:
             os.umask(self.umask)
@@ -300,6 +316,6 @@ class WorkerBase(service.MultiService):
 
         try:
             with open(filename, "w") as f:
-                f.write("{0}\n".format(hostname))
+                f.write(f"{hostname}\n")
         except Exception:
             log.msg("failed - ignoring")

@@ -16,7 +16,6 @@
 import base64
 
 import msgpack
-
 from autobahn.twisted.websocket import WebSocketClientFactory
 from autobahn.twisted.websocket import WebSocketClientProtocol
 from autobahn.websocket.types import ConnectingRequest
@@ -51,18 +50,40 @@ def encode_http_authorization_header(name, password):
 
 
 def remote_print(self, message):
-    log.msg("WorkerForBuilder.remote_print({0}): message from master: {1}".format(
-            self.name, message))
+    log.msg(f"WorkerForBuilder.remote_print({self.name}): message from master: {message}")
 
 
 class ProtocolCommandMsgpack(ProtocolCommandBase):
-    def __init__(self, unicode_encoding, worker_basedir, buffer_size, buffer_timeout,
-                 max_line_length, newline_re, builder_is_running,
-                 on_command_complete, protocol, command_id, command, args):
-        ProtocolCommandBase.__init__(self, unicode_encoding, worker_basedir, buffer_size,
-                                     buffer_timeout, max_line_length, newline_re,
-                                     builder_is_running, on_command_complete, None, command,
-                                     command_id, args)
+    def __init__(
+        self,
+        unicode_encoding,
+        worker_basedir,
+        buffer_size,
+        buffer_timeout,
+        max_line_length,
+        newline_re,
+        builder_is_running,
+        on_command_complete,
+        protocol,
+        command_id,
+        command,
+        args,
+    ):
+        ProtocolCommandBase.__init__(
+            self,
+            unicode_encoding,
+            worker_basedir,
+            buffer_size,
+            buffer_timeout,
+            max_line_length,
+            newline_re,
+            builder_is_running,
+            on_command_complete,
+            None,
+            command,
+            command_id,
+            args,
+        )
         self.protocol = protocol
 
     def protocol_args_setup(self, command, args):
@@ -85,8 +106,11 @@ class ProtocolCommandMsgpack(ProtocolCommandBase):
             args['reader'] = None
 
     def protocol_send_update_message(self, message):
-        d = self.protocol.get_message_result({'op': 'update', 'args': message,
-                                              'command_id': self.command_id})
+        d = self.protocol.get_message_result({
+            'op': 'update',
+            'args': message,
+            'command_id': self.command_id,
+        })
         d.addErrback(self._ack_failed, "ProtocolCommandBase.send_update")
 
     def protocol_notify_on_disconnect(self):
@@ -97,47 +121,67 @@ class ProtocolCommandMsgpack(ProtocolCommandBase):
         d_update = self.flush_command_output()
         if failure is not None:
             failure = str(failure)
-        d_complete = self.protocol.get_message_result({'op': 'complete', 'args': failure,
-                                                       'command_id': self.command_id})
+        d_complete = self.protocol.get_message_result({
+            'op': 'complete',
+            'args': failure,
+            'command_id': self.command_id,
+        })
         yield d_update
         yield d_complete
 
     # Returns a Deferred
     def protocol_update_upload_file_close(self, writer):
-        return self.protocol.get_message_result({'op': 'update_upload_file_close',
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_upload_file_close',
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_upload_file_utime(self, writer, access_time, modified_time):
-        return self.protocol.get_message_result({'op': 'update_upload_file_utime',
-                                                 'access_time': access_time,
-                                                 'modified_time': modified_time,
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_upload_file_utime',
+            'access_time': access_time,
+            'modified_time': modified_time,
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_upload_file_write(self, writer, data):
-        return self.protocol.get_message_result({'op': 'update_upload_file_write', 'args': data,
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_upload_file_write',
+            'args': data,
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_upload_directory(self, writer):
-        return self.protocol.get_message_result({'op': 'update_upload_directory_unpack',
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_upload_directory_unpack',
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_upload_directory_write(self, writer, data):
-        return self.protocol.get_message_result({'op': 'update_upload_directory_write',
-                                                 'args': data, 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_upload_directory_write',
+            'args': data,
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_read_file_close(self, reader):
-        return self.protocol.get_message_result({'op': 'update_read_file_close',
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_read_file_close',
+            'command_id': self.command_id,
+        })
 
     # Returns a Deferred
     def protocol_update_read_file(self, reader, length):
-        return self.protocol.get_message_result({'op': 'update_read_file', 'length': length,
-                                                 'command_id': self.command_id})
+        return self.protocol.get_message_result({
+            'op': 'update_read_file',
+            'length': length,
+            'command_id': self.command_id,
+        })
 
 
 class ConnectionLostError(Exception):
@@ -148,17 +192,17 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
     debug = True
 
     def __init__(self):
-        super(BuildbotWebSocketClientProtocol, self).__init__()
+        super().__init__()
         self.seq_num_to_waiters_map = {}
         self._deferwaiter = deferwaiter.DeferWaiter()
 
     def onConnect(self, response):
         if self.debug:
-            log.msg("Server connected: {0}".format(response.peer))
+            log.msg(f"Server connected: {response.peer}")
 
     def onConnecting(self, transport_details):
         if self.debug:
-            log.msg("Connecting; transport details: {}".format(transport_details))
+            log.msg(f"Connecting; transport details: {transport_details}")
 
         auth_header = encode_http_authorization_header(self.factory.name, self.factory.password)
 
@@ -169,7 +213,7 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
             headers={"Authorization": auth_header},
             useragent=self.factory.useragent,
             origin=self.factory.origin,
-            protocols=self.factory.protocols
+            protocols=self.factory.protocols,
         )
 
     def maybe_log_worker_to_master_msg(self, message):
@@ -183,7 +227,7 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
     def contains_msg_key(self, msg, keys):
         for k in keys:
             if k not in msg:
-                raise KeyError('message did not contain obligatory "{}" key'.format(k))
+                raise KeyError(f'message did not contain obligatory "{k}" key')
 
     def onOpen(self):
         if self.debug:
@@ -248,8 +292,9 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
         try:
             self.contains_msg_key(msg, ('command_id', 'command_name', 'args'))
             # send an instance, on which get_message_result will be called
-            yield self.factory.buildbot_bot.start_command(self, msg['command_id'],
-                                                          msg['command_name'], msg['args'])
+            yield self.factory.buildbot_bot.start_command(
+                self, msg['command_id'], msg['command_name'], msg['args']
+            )
             result = None
         except Exception as e:
             is_exception = True
@@ -283,11 +328,7 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
         self.send_response_msg(msg, result, is_exception)
 
     def send_response_msg(self, msg, result, is_exception):
-        dict_output = {
-            'op': 'response',
-            'seq_number': msg['seq_number'],
-            'result': result
-        }
+        dict_output = {'op': 'response', 'seq_number': msg['seq_number'], 'result': result}
 
         if is_exception:
             dict_output['is_exception'] = True
@@ -304,7 +345,7 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
         self.maybe_log_master_to_worker_msg(msg)
 
         if 'seq_number' not in msg or 'op' not in msg:
-            log.msg('Invalid message from master: {}'.format(msg))
+            log.msg(f'Invalid message from master: {msg}')
             return
         if msg['op'] == "print":
             self._deferwaiter.add(self.call_print(msg))
@@ -329,8 +370,9 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
             # stop waiting for a response of this command
             del self.seq_num_to_waiters_map[seq_number]
         else:
-            self.send_response_msg(msg, "Command {} does not exist.".format(msg['op']),
-                                   is_exception=True)
+            self.send_response_msg(
+                msg, "Command {} does not exist.".format(msg['op']), is_exception=True
+            )
 
     @defer.inlineCallbacks
     def get_message_result(self, msg):
@@ -342,11 +384,11 @@ class BuildbotWebSocketClientProtocol(WebSocketClientProtocol):
         self.seq_number = self.seq_number + 1
         self.sendMessage(msg, isBinary=True)
         res1 = yield d
-        defer.returnValue(res1)
+        return res1
 
     def onClose(self, wasClean, code, reason):
         if self.debug:
-            log.msg("WebSocket connection closed: {0}".format(reason))
+            log.msg(f"WebSocket connection closed: {reason}")
         # stop waiting for the responses of all commands
         for seq_number in self.seq_num_to_waiters_map:
             self.seq_num_to_waiters_map[seq_number].errback(ConnectionLostError("Connection lost"))

@@ -14,8 +14,7 @@
 # Copyright Buildbot Team Members
 
 
-"""Base classes handy for use with PB clients.
-"""
+"""Base classes handy for use with PB clients."""
 
 from twisted.application.internet import backoffPolicy
 from twisted.cred import error
@@ -78,10 +77,10 @@ class AutoLoginPBFactory(PBClientFactory):
         self._client = client
 
     def doLogin(self, root, broker):
-        d = self._cbSendUsername(root, self._credentials.username,
-                                 self._credentials.password, self._client)
-        d.addCallbacks(self.gotPerspective, self.failedToGetPerspective,
-                       errbackArgs=(broker,))
+        d = self._cbSendUsername(
+            root, self._credentials.username, self._credentials.password, self._client
+        )
+        d.addCallbacks(self.gotPerspective, self.failedToGetPerspective, errbackArgs=(broker,))
         return d
 
     def stopFactory(self):
@@ -117,16 +116,11 @@ class AutoLoginPBFactory(PBClientFactory):
         else:
             log.err(why, 'While trying to connect:')
             reactor.stop()
-            defer.returnValue(None)
+            return
 
         self._failedAttempts += 1
         delay = self._timeoutForAttempt(self._failedAttempts)
-        log.msg(
-            "Scheduling retry {attempt} to getPerspective in {delay} seconds.".format(
-                attempt=self._failedAttempts,
-                delay=delay,
-            )
-        )
+        log.msg(f"Scheduling retry {self._failedAttempts} to getPerspective in {delay} seconds.")
 
         # Delay the retry according to the backoff policy
         try:

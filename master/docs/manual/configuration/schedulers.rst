@@ -135,14 +135,14 @@ There are several common arguments for schedulers, although not all are availabl
 ``properties`` (optional)
 
     This is a dictionary specifying properties that will be transmitted to all builds started by this scheduler.
-    The ``owner`` property may be of particular interest, as its contents (list) will be added to the list of "interested users" (:ref:`Doing-Things-With-Users`) for each triggered build.
+    The ``owner`` property may be of particular interest, as its content (string) will be added to the list of "interested users" (:ref:`Doing-Things-With-Users`) for each triggered build.
     For example:
 
     .. code-block:: python
 
         sched = Scheduler(...,
             properties = {
-                'owner': ['zorro@example.com', 'silver@example.com']
+                'owner': 'zorro@example.com'
             })
 
 .. _Scheduler-Attr-Codebases:
@@ -1204,6 +1204,11 @@ All parameter types have a few common arguments:
     The maximum size of a field (in bytes).
     Buildbot will ensure the field sent by the user is not too large.
 
+``tooltip`` (optional; default "")
+
+    The tooltip of the parameter.
+    This will show help text next to the field name, if set.
+
 ``autopopulate`` (optional; default: None)
 
     If not None, ``autopopulate`` is a dictionary which describes how other parameters are updated if this one changes.
@@ -1402,7 +1407,6 @@ Its arguments, in addition to the common options, are:
 ``strict`` (optional; default is True)
 
     If true, verify that the user's input is from the list.
-    Note that this only affects the validation of the form request; even if this argument is False, there is no HTML form component available to enter an arbitrary value.
 
 ``multiple``
 
@@ -1453,7 +1457,7 @@ Example of scheduler allowing to choose which worker to run on:
           BuilderConfig(name='mybuild', factory=f, nextWorker=nextWorker,
                 workernames=worker_list),
         ]
-        
+
 
 .. bb:sched:: CodebaseParameter
 

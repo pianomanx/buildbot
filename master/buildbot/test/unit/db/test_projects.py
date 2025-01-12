@@ -18,80 +18,59 @@ from twisted.trial import unittest
 
 from buildbot.db import projects
 from buildbot.test import fakedb
-from buildbot.test.util import connector_component
-from buildbot.test.util import interfaces
-from buildbot.test.util import validation
+from buildbot.test.fake import fakemaster
+from buildbot.test.reactor import TestReactorMixin
 
 
 def project_key(builder):
-    return builder['id']
+    return builder.id
 
 
-class Tests(interfaces.InterfaceTests):
-
-    def test_signature_find_project_id(self):
-        @self.assertArgSpecMatches(self.db.projects.find_project_id)
-        def find_project_id(self, name, auto_create=True):
-            pass
-
-    def test_signature_get_project(self):
-        @self.assertArgSpecMatches(self.db.projects.get_project)
-        def get_project(self, projectid):
-            pass
-
-    def test_signature_get_projects(self):
-        @self.assertArgSpecMatches(self.db.projects.get_projects)
-        def get_projects(self):
-            pass
-
-    def test_signature_update_project_info(self):
-        @self.assertArgSpecMatches(self.db.projects.update_project_info)
-        def update_project_info(
-            self,
-            projectid,
-            slug,
-            description,
-            description_format,
-            description_html,
-        ):
-            pass
+class Tests(TestReactorMixin, unittest.TestCase):
+    @defer.inlineCallbacks
+    def setUp(self):
+        self.setup_test_reactor()
+        self.master = yield fakemaster.make_master(self, wantDb=True)
+        self.db = self.master.db
 
     @defer.inlineCallbacks
     def test_update_project_info(self):
-        yield self.insert_test_data([
+        yield self.db.insert_test_data([
             fakedb.Project(id=7, name='fake_project7'),
         ])
 
         yield self.db.projects.update_project_info(
-            7,
-            "slug7",
-            "project7 desc",
-            "format",
-            "html desc"
+            7, "slug7", "project7 desc", "format", "html desc"
         )
         dbdict = yield self.db.projects.get_project(7)
-        validation.verifyDbDict(self, 'projectdict', dbdict)
-        self.assertEqual(dbdict, {
-            "id": 7,
-            "name": "fake_project7",
-            "slug": "slug7",
-            "description": "project7 desc",
-            "description_format": "format",
-            "description_html": "html desc",
-        })
+        self.assertIsInstance(dbdict, projects.ProjectModel)
+        self.assertEqual(
+            dbdict,
+            projects.ProjectModel(
+                id=7,
+                name="fake_project7",
+                slug="slug7",
+                description="project7 desc",
+                description_format="format",
+                description_html="html desc",
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_find_project_id_new(self):
         id = yield self.db.projects.find_project_id('fake_project')
         dbdict = yield self.db.projects.get_project(id)
-        self.assertEqual(dbdict, {
-            "id": id,
-            "name": "fake_project",
-            "slug": "fake_project",
-            "description": None,
-            "description_format": None,
-            "description_html": None,
-        })
+        self.assertEqual(
+            dbdict,
+            projects.ProjectModel(
+                id=id,
+                name="fake_project",
+                slug="fake_project",
+                description=None,
+                description_format=None,
+                description_html=None,
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_find_project_id_new_no_auto_create(self):
@@ -100,7 +79,7 @@ class Tests(interfaces.InterfaceTests):
 
     @defer.inlineCallbacks
     def test_find_project_id_exists(self):
-        yield self.insert_test_data([
+        yield self.db.insert_test_data([
             fakedb.Project(id=7, name='fake_project'),
         ])
         id = yield self.db.projects.find_project_id('fake_project')
@@ -108,19 +87,22 @@ class Tests(interfaces.InterfaceTests):
 
     @defer.inlineCallbacks
     def test_get_project(self):
-        yield self.insert_test_data([
+        yield self.db.insert_test_data([
             fakedb.Project(id=7, name='fake_project'),
         ])
         dbdict = yield self.db.projects.get_project(7)
-        validation.verifyDbDict(self, 'projectdict', dbdict)
-        self.assertEqual(dbdict, {
-            "id": 7,
-            "name": "fake_project",
-            "slug": "fake_project",
-            "description": None,
-            "description_format": None,
-            "description_html": None,
-        })
+        self.assertIsInstance(dbdict, projects.ProjectModel)
+        self.assertEqual(
+            dbdict,
+            projects.ProjectModel(
+                id=7,
+                name="fake_project",
+                slug="fake_project",
+                description=None,
+                description_format=None,
+                description_html=None,
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_get_project_missing(self):
@@ -129,40 +111,46 @@ class Tests(interfaces.InterfaceTests):
 
     @defer.inlineCallbacks
     def test_get_projects(self):
-        yield self.insert_test_data([
+        yield self.db.insert_test_data([
             fakedb.Project(id=7, name="fake_project7"),
             fakedb.Project(id=8, name="fake_project8"),
             fakedb.Project(id=9, name="fake_project9"),
         ])
         dblist = yield self.db.projects.get_projects()
         for dbdict in dblist:
-            validation.verifyDbDict(self, 'projectdict', dbdict)
-        self.assertEqual(sorted(dblist, key=project_key), sorted([
-            {
-                "id": 7,
-                "name": "fake_project7",
-                "slug": "fake_project7",
-                "description": None,
-                "description_format": None,
-                "description_html": None,
-            },
-            {
-                "id": 8,
-                "name": "fake_project8",
-                "slug": "fake_project8",
-                "description": None,
-                "description_format": None,
-                "description_html": None,
-            },
-            {
-                "id": 9,
-                "name": "fake_project9",
-                "slug": "fake_project9",
-                "description": None,
-                "description_format": None,
-                "description_html": None,
-            },
-        ], key=project_key))
+            self.assertIsInstance(dbdict, projects.ProjectModel)
+        self.assertEqual(
+            sorted(dblist, key=project_key),
+            sorted(
+                [
+                    projects.ProjectModel(
+                        id=7,
+                        name="fake_project7",
+                        slug="fake_project7",
+                        description=None,
+                        description_format=None,
+                        description_html=None,
+                    ),
+                    projects.ProjectModel(
+                        id=8,
+                        name="fake_project8",
+                        slug="fake_project8",
+                        description=None,
+                        description_format=None,
+                        description_html=None,
+                    ),
+                    projects.ProjectModel(
+                        id=9,
+                        name="fake_project9",
+                        slug="fake_project9",
+                        description=None,
+                        description_format=None,
+                        description_html=None,
+                    ),
+                ],
+                key=project_key,
+            ),
+        )
 
     @defer.inlineCallbacks
     def test_get_projects_empty(self):
@@ -171,7 +159,7 @@ class Tests(interfaces.InterfaceTests):
 
     @defer.inlineCallbacks
     def test_get_active_projects(self):
-        yield self.insert_test_data([
+        yield self.db.insert_test_data([
             fakedb.Project(id=1, name='fake_project1'),
             fakedb.Project(id=2, name='fake_project2'),
             fakedb.Project(id=3, name='fake_project3'),
@@ -182,47 +170,17 @@ class Tests(interfaces.InterfaceTests):
         ])
         dblist = yield self.db.projects.get_active_projects()
         for dbdict in dblist:
-            validation.verifyDbDict(self, 'projectdict', dbdict)
-        self.assertEqual(dblist, [{
-            "id": 2,
-            "name": "fake_project2",
-            "slug": "fake_project2",
-            "description": None,
-            "description_format": None,
-            "description_html": None,
-        }])
-
-
-class RealTests(Tests):
-
-    # tests that only "real" implementations will pass
-
-    pass
-
-
-class TestFakeDB(unittest.TestCase, connector_component.FakeConnectorComponentMixin, Tests):
-
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield self.setUpConnectorComponent()
-
-
-class TestRealDB(unittest.TestCase,
-                 connector_component.ConnectorComponentMixin,
-                 RealTests):
-
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield self.setUpConnectorComponent(table_names=[
-            "projects",
-            "builders",
-            "masters",
-            "builder_masters"
-        ])
-
-        self.db.projects = projects.ProjectsConnectorComponent(self.db)
-        self.master = self.db.master
-        self.master.db = self.db
-
-    def tearDown(self):
-        return self.tearDownConnectorComponent()
+            self.assertIsInstance(dbdict, projects.ProjectModel)
+        self.assertEqual(
+            dblist,
+            [
+                projects.ProjectModel(
+                    id=2,
+                    name="fake_project2",
+                    slug="fake_project2",
+                    description=None,
+                    description_format=None,
+                    description_html=None,
+                )
+            ],
+        )

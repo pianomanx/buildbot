@@ -13,31 +13,34 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from twisted.internet import defer
 
 from buildbot.data import base
 from buildbot.data import types
 
+if TYPE_CHECKING:
+    from buildbot.db.test_results import TestResultModel
+
 
 class Db2DataMixin:
-
-    def db2data(self, dbdict):
-        data = {
-            'test_resultid': dbdict['id'],
-            'builderid': dbdict['builderid'],
-            'test_result_setid': dbdict['test_result_setid'],
-            'test_name': dbdict['test_name'],
-            'test_code_path': dbdict['test_code_path'],
-            'line': dbdict['line'],
-            'duration_ns': dbdict['duration_ns'],
-            'value': dbdict['value'],
+    def db2data(self, model: TestResultModel):
+        return {
+            'test_resultid': model.id,
+            'builderid': model.builderid,
+            'test_result_setid': model.test_result_setid,
+            'test_name': model.test_name,
+            'test_code_path': model.test_code_path,
+            'line': model.line,
+            'duration_ns': model.duration_ns,
+            'value': model.value,
         }
-        return defer.succeed(data)
 
 
 class TestResultsEndpoint(Db2DataMixin, base.Endpoint):
-
     kind = base.EndpointKind.COLLECTION
     pathPatterns = """
         /test_result_sets/n:test_result_setid/results
@@ -45,29 +48,24 @@ class TestResultsEndpoint(Db2DataMixin, base.Endpoint):
 
     @defer.inlineCallbacks
     def get(self, resultSpec, kwargs):
-        set_dbdict = \
-            yield self.master.db.test_result_sets.getTestResultSet(kwargs['test_result_setid'])
+        set_dbdict = yield self.master.db.test_result_sets.getTestResultSet(
+            kwargs['test_result_setid']
+        )
 
         if set_dbdict is None:
             return []
 
-        result_dbdicts = \
-            yield self.master.db.test_results.getTestResults(set_dbdict['builderid'],
-                                                             kwargs['test_result_setid'],
-                                                             result_spec=resultSpec)
+        result_dbdicts = yield self.master.db.test_results.getTestResults(
+            set_dbdict.builderid, kwargs['test_result_setid'], result_spec=resultSpec
+        )
 
-        results = []
-        for dbdict in result_dbdicts:
-            results.append((yield self.db2data(dbdict)))
-        return results
+        return [self.db2data(result) for result in result_dbdicts]
 
 
 class TestResult(base.ResourceType):
-
     name = "test_result"
     plural = "test_results"
     endpoints = [TestResultsEndpoint]
-    keyField = 'test_resultid'
     eventPathPatterns = """
         /test_result_sets/:test_result_setid/results
     """
@@ -81,7 +79,8 @@ class TestResult(base.ResourceType):
         line = types.NoneOk(types.Integer())
         duration_ns = types.NoneOk(types.Integer())
         value = types.String()
-    entityType = EntityType(name, 'TestResult')
+
+    entityType = EntityType(name)
 
     @base.updateMethod
     @defer.inlineCallbacks
@@ -90,5 +89,6 @@ class TestResult(base.ResourceType):
         # will be part of a test result set. The users should wait for a 'complete' event on a
         # test result set and only then fetch the test results, which won't change from that time
         # onward.
-        yield self.master.db.test_results.addTestResults(builderid, test_result_setid,
-                                                         result_values)
+        yield self.master.db.test_results.addTestResults(
+            builderid, test_result_setid, result_values
+        )

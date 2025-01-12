@@ -13,6 +13,7 @@
 #
 # Copyright Buildbot Team Members
 
+from twisted.internet import defer
 from twisted.trial import unittest
 
 from buildbot.config import ConfigErrors
@@ -25,19 +26,15 @@ from buildbot.test.steps import TestBuildStepMixin
 
 
 class TestCMake(TestBuildStepMixin, TestReactorMixin, unittest.TestCase):
-
+    @defer.inlineCallbacks
     def setUp(self):
         self.setup_test_reactor()
-        self.setup_test_build_step()
-
-    def tearDown(self):
-        self.tear_down_test_build_step()
+        yield self.setup_test_build_step()
 
     def expect_and_run_command(self, *params):
-        command = [CMake.DEFAULT_CMAKE] + list(params)
+        command = [CMake.DEFAULT_CMAKE, *list(params)]
 
-        self.expect_commands(
-            ExpectShell(command=command, workdir='wkdir').exit(0))
+        self.expect_commands(ExpectShell(command=command, workdir='wkdir').exit(0))
         self.expect_outcome(result=SUCCESS)
         return self.run_step()
 
@@ -51,8 +48,7 @@ class TestCMake(TestBuildStepMixin, TestReactorMixin, unittest.TestCase):
 
     def test_plain(self):
         self.setup_step(CMake())
-        self.expect_commands(
-            ExpectShell(command=[CMake.DEFAULT_CMAKE], workdir='wkdir').exit(0))
+        self.expect_commands(ExpectShell(command=[CMake.DEFAULT_CMAKE], workdir='wkdir').exit(0))
         self.expect_outcome(result=SUCCESS)
         return self.run_step()
 
@@ -60,8 +56,7 @@ class TestCMake(TestBuildStepMixin, TestReactorMixin, unittest.TestCase):
         cmake_bin = 'something/else/cmake'
 
         self.setup_step(CMake(cmake=cmake_bin))
-        self.expect_commands(
-            ExpectShell(command=[cmake_bin], workdir='wkdir').exit(0))
+        self.expect_commands(ExpectShell(command=[cmake_bin], workdir='wkdir').exit(0))
         self.expect_outcome(result=SUCCESS)
         return self.run_step()
 
@@ -72,15 +67,12 @@ class TestCMake(TestBuildStepMixin, TestReactorMixin, unittest.TestCase):
         self.setup_step(CMake(cmake=Property(prop)))
         self.build.setProperty(prop, value, source='test')
 
-        self.expect_commands(
-            ExpectShell(command=[value], workdir='wkdir').exit(0))
+        self.expect_commands(ExpectShell(command=[value], workdir='wkdir').exit(0))
         self.expect_outcome(result=SUCCESS)
         return self.run_step()
 
     def test_definitions(self):
-        definition = {
-            'a': 'b'
-        }
+        definition = {'a': 'b'}
         self.setup_step(CMake(definitions=definition))
         self.expect_and_run_command('-Da=b')
 
@@ -88,16 +80,12 @@ class TestCMake(TestBuildStepMixin, TestReactorMixin, unittest.TestCase):
         command = [CMake.DEFAULT_CMAKE]
         environment = {'a': 'b'}
         self.setup_step(CMake(env=environment))
-        self.expect_commands(
-            ExpectShell(
-                command=command, workdir='wkdir', env={'a': 'b'}).exit(0))
+        self.expect_commands(ExpectShell(command=command, workdir='wkdir', env={'a': 'b'}).exit(0))
         self.expect_outcome(result=SUCCESS)
         return self.run_step()
 
     def test_definitions_interpolation(self):
-        definitions = {
-            'a': Property('b')
-        }
+        definitions = {'a': Property('b')}
 
         self.setup_step(CMake(definitions=definitions))
         self.build.setProperty('b', 'real_b', source='test')

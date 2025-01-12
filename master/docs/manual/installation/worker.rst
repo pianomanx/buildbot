@@ -104,7 +104,8 @@ To use these, just include them on the ``buildbot-worker create-worker`` command
 .. option:: --protocol
 
     This is a string representing a protocol to be used when creating master-worker connection.
-    The default option is Perspective Broker (``pb``).
+    The default option is Perspective Broker (``pb``). Additionally, there is an experimental
+    MessagePack-based protocol (``msgpack_experimental_v7``).
 
 .. option:: --no-logrotate
 
@@ -202,7 +203,7 @@ Other Worker Configuration
 ``unicode_encoding``
     This represents the encoding that Buildbot should use when converting unicode commandline arguments into byte strings in order to pass to the operating system when spawning new processes.
 
-    The default value is what Python's :func:`sys.getfilesystemencoding()` returns, which on Windows is 'mbcs', on Mac OSX is 'utf-8', and on Unix depends on your locale settings.
+    The default value is what Python's :func:`sys.getfilesystemencoding()` returns, which on Windows is 'mbcs', on macOS is 'utf-8', and on Unix depends on your locale settings.
 
     If you need a different encoding, this can be changed in your worker's :file:`buildbot.tac` file by adding a ``unicode_encoding`` argument to the Worker constructor.
 

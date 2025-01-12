@@ -120,31 +120,31 @@ Choosing a Change Source
 There are a variety of :class:`ChangeSource` classes available, some of which are meant to be used in conjunction with other tools to deliver :class:`Change` events from the VC repository to the buildmaster.
 
 As a quick guide, here is a list of VC systems and the :class:`ChangeSource`\s that might be useful with them.
-Note that some of these modules are in Buildbot's :contrib-src:`master/contrib` directory, meaning that they have been offered by other users in hopes they may be useful, and might require some additional work to make them functional.
+Note that some of these modules are in Buildbot's :src:`master/contrib` directory, meaning that they have been offered by other users in hopes they may be useful, and might require some additional work to make them functional.
 
 CVS
 
-* :bb:chsrc:`CVSMaildirSource` (watching mail sent by :contrib-src:`master/contrib/buildbot_cvs_mail.py` script)
+* :bb:chsrc:`CVSMaildirSource` (watching mail sent by :src:`master/contrib/buildbot_cvs_mail.py` script)
 * :bb:chsrc:`PBChangeSource` (listening for connections from ``buildbot sendchange`` run in a loginfo script)
-* :bb:chsrc:`PBChangeSource` (listening for connections from a long-running :contrib-src:`master/contrib/viewcvspoll.py` polling process which examines the ViewCVS database directly)
+* :bb:chsrc:`PBChangeSource` (listening for connections from a long-running :src:`master/contrib/viewcvspoll.py` polling process which examines the ViewCVS database directly)
 * :bb:chsrc:`Change Hooks` in WebStatus
 
 SVN
 
-* :bb:chsrc:`PBChangeSource` (listening for connections from :contrib-src:`master/contrib/svn_buildbot.py` run in a postcommit script)
-* :bb:chsrc:`PBChangeSource` (listening for connections from a long-running :contrib-src:`master/contrib/svn_watcher.py` or :contrib-src:`master/contrib/svnpoller.py` polling process
+* :bb:chsrc:`PBChangeSource` (listening for connections from :src:`master/contrib/svn_buildbot.py` run in a postcommit script)
+* :bb:chsrc:`PBChangeSource` (listening for connections from a long-running :src:`master/contrib/svn_watcher.py` or :src:`master/contrib/svnpoller.py` polling process
 * :bb:chsrc:`SVNCommitEmailMaildirSource` (watching for email sent by :file:`commit-email.pl`)
 * :bb:chsrc:`SVNPoller` (polling the SVN repository)
 * :bb:chsrc:`Change Hooks` in WebStatus
 
 Darcs
 
-* :bb:chsrc:`PBChangeSource` (listening for connections from :contrib-src:`master/contrib/darcs_buildbot.py` in a commit script)
+* :bb:chsrc:`PBChangeSource` (listening for connections from :src:`master/contrib/darcs_buildbot.py` in a commit script)
 * :bb:chsrc:`Change Hooks` in WebStatus
 
 Mercurial
 
-* :bb:chsrc:`Change Hooks` in WebStatus (including :contrib-src:`master/contrib/hgbuildbot.py`, configurable in a ``changegroup`` hook)
+* :bb:chsrc:`Change Hooks` in WebStatus (including :src:`master/contrib/hgbuildbot.py`, configurable in a ``changegroup`` hook)
 * `BitBucket change hook <BitBucket hook>`_ (specifically designed for BitBucket notifications, but requiring a publicly-accessible WebStatus)
 * :bb:chsrc:`HgPoller` (polling a remote Mercurial repository)
 * :bb:chsrc:`BitbucketPullrequestPoller` (polling Bitbucket for pull requests)
@@ -152,14 +152,14 @@ Mercurial
 
 Bzr (the newer Bazaar)
 
-* :bb:chsrc:`PBChangeSource` (listening for connections from :contrib-src:`master/contrib/bzr_buildbot.py` run in a post-change-branch-tip or commit hook)
+* :bb:chsrc:`PBChangeSource` (listening for connections from :src:`master/contrib/bzr_buildbot.py` run in a post-change-branch-tip or commit hook)
 * :bb:chsrc:`BzrPoller` (polling the Bzr repository)
 * :bb:chsrc:`Change Hooks` in WebStatus
 
 Git
 
-* :bb:chsrc:`PBChangeSource` (listening for connections from :contrib-src:`master/contrib/git_buildbot.py` run in the post-receive hook)
-* :bb:chsrc:`PBChangeSource` (listening for connections from :contrib-src:`master/contrib/github_buildbot.py`, which listens for notifications from GitHub)
+* :bb:chsrc:`PBChangeSource` (listening for connections from :src:`master/contrib/git_buildbot.py` run in the post-receive hook)
+* :bb:chsrc:`PBChangeSource` (listening for connections from :src:`master/contrib/github_buildbot.py`, which listens for notifications from GitHub)
 * :bb:chsrc:`Change Hooks` in WebStatus
 * :bb:chsrc:`GitHub` change hook (specifically designed for GitHub notifications, but requiring a publicly-accessible WebStatus)
 * :bb:chsrc:`BitBucket` change hook (specifically designed for BitBucket notifications, but requiring a publicly-accessible WebStatus)
@@ -169,7 +169,7 @@ Git
 
 Repo/Gerrit
 
-* :bb:chsrc:`GerritChangeSource` connects to Gerrit via SSH to get a live stream of changes
+* :bb:chsrc:`GerritChangeSource` connects to Gerrit via SSH and optionally HTTP to get a live stream of changes
 * :bb:chsrc:`GerritEventLogPoller` connects to Gerrit via HTTP with the help of the plugin events-log_
 
 Monotone
@@ -358,7 +358,7 @@ CVSMaildirSource
 
 .. py:class:: buildbot.changes.mail.CVSMaildirSource
 
-This parser works with the :contrib-src:`master/contrib/buildbot_cvs_mail.py` script.
+This parser works with the :src:`master/contrib/buildbot_cvs_mail.py` script.
 
 The script sends an email containing all the files submitted in one directory.
 It is invoked by using the :file:`CVSROOT/loginfo` facility.
@@ -373,10 +373,10 @@ For example:
 
     c['change_source'] = changes.CVSMaildirSource("/home/buildbot/Mail")
 
-Configuration of CVS and :contrib-src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>`
+Configuration of CVS and :src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>`
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-CVS must be configured to invoke the :contrib-src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>` script when files are checked in.
+CVS must be configured to invoke the :src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>` script when files are checked in.
 This is done via the CVS loginfo configuration file.
 
 To update this, first do:
@@ -396,7 +396,7 @@ cd to the CVSROOT directory and edit the file loginfo, adding a line like:
    For cvs version 1.12.x, the ``--path %p`` option is required.
    Version 1.11.x and 1.12.x report the directory path differently.
 
-The above example you put the :contrib-src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>` script under /cvsroot/CVSROOT.
+The above example you put the :src:`buildbot_cvs_mail.py <master/contrib/buildbot_cvs_mail.py>` script under /cvsroot/CVSROOT.
 It can be anywhere.
 Run the script with ``--help`` to see all the options.
 At the very least, the options ``-e`` (email) and ``-P`` (project) should be specified.
@@ -524,7 +524,7 @@ Bzr Hook
 
 Bzr is also written in Python, and the Bzr hook depends on Twisted to send the changes.
 
-To install, put :contrib-src:`master/contrib/bzr_buildbot.py` in one of your plugins locations a bzr plugins directory (e.g., :file:`~/.bazaar/plugins`).
+To install, put :src:`master/contrib/bzr_buildbot.py` in one of your plugins locations a bzr plugins directory (e.g., :file:`~/.bazaar/plugins`).
 Then, in one of your bazaar conf files (e.g., :file:`~/.bazaar/locations.conf`), set the location you want to connect with Buildbot with these keys:
 
   * ``buildbot_on``
@@ -824,7 +824,7 @@ Bzr Poller
 ~~~~~~~~~~
 
 If you cannot insert a Bzr hook in the server, you can use the :bb:chsrc:`BzrPoller`.
-To use it, put :contrib-src:`master/contrib/bzr_buildbot.py` somewhere that your Buildbot configuration can import it.
+To use it, put :src:`master/contrib/bzr_buildbot.py` somewhere that your Buildbot configuration can import it.
 Even putting it in the same directory as the :file:`master.cfg` should work.
 Install the poller in the Buildbot configuration as with any other change source.
 Minimally, provide a URL that you want to poll (``bzr://``, ``bzr+ssh://``, or ``lp:``), making sure the Buildbot user has necessary privileges.
@@ -849,7 +849,7 @@ The ``BzrPoller`` parameters are:
 
 ``branch_name``
     Any value to be used as the branch name.
-    Defaults to None, or specify a string, or specify the constants from :contrib-src:`bzr_buildbot.py <master/contrib/bzr_buildbot.py>` ``SHORT`` or ``FULL`` to get the short branch name or full branch address.
+    Defaults to None, or specify a string, or specify the constants from :src:`bzr_buildbot.py <master/contrib/bzr_buildbot.py>` ``SHORT`` or ``FULL`` to get the short branch name or full branch address.
 
 ``blame_merge_author``
     Normally, the user that commits the revision is the user that is responsible for the change.
@@ -863,7 +863,7 @@ The ``BzrPoller`` parameters are:
 GitPoller
 ~~~~~~~~~
 
-If you cannot take advantage of post-receive hooks as provided by :contrib-src:`master/contrib/git_buildbot.py` for example, then you can use the :bb:chsrc:`GitPoller`.
+If you cannot take advantage of post-receive hooks as provided by :src:`master/contrib/git_buildbot.py` for example, then you can use the :bb:chsrc:`GitPoller`.
 
 The :bb:chsrc:`GitPoller` periodically fetches from a remote Git repository and processes any changes.
 It requires its own working directory for operation.
@@ -884,6 +884,8 @@ It accepts the following arguments:
     * ``True`` indicating that all branches should be fetched
     * a callable which takes a single argument.
       It should take a remote refspec (such as ``'refs/heads/master'``), and return a boolean indicating whether that branch should be fetched.
+
+    If not provided, :bb:chsrc:`GitPoller` will use ``HEAD`` to fetch the remote default branch.
 
 ``branch``
     Accepts a single branch name to fetch.
@@ -964,6 +966,16 @@ It accepts the following arguments:
    This may be either a :ref:`Secret` or just a string.
    `sshPrivateKey` must be specified in order to use this option.
    `sshHostKey` must not be specified in order to use this option.
+
+``auth_credentials``
+
+    (optional) An username/password tuple to use when running git for fetch operations.
+    The worker's git version needs to be at least 1.7.9.
+
+``git_credentials``
+
+    (optional) See :ref:`GitCredentialOptions`.
+    The worker's git version needs to be at least 1.7.9.
 
 A configuration for the Git poller might look like this:
 
@@ -1256,11 +1268,14 @@ GerritChangeSource
 
 The :bb:chsrc:`GerritChangeSource` class connects to a Gerrit server by its SSH interface and uses its event source mechanism, `gerrit stream-events <https://gerrit-documentation.storage.googleapis.com/Documentation/2.2.1/cmd-stream-events.html>`_.
 
-Note that the Gerrit event stream is stateless and any events that occur while buildbot is not connected to Gerrit will be lost.
-See :bb:chsrc:`GerritEventLogPoller` for a stateful change source.
+Optionally it may use the `events-log plugin <https://gerrit.googlesource.com/plugins/events-log/+/refs/heads/master/src/main/resources/Documentation/rest-api-events.md>`_
+to retrieve any events that occur while Buildbot is not connected. If events-log mechanism is not
+used any events that occur while buildbot is not connected to Gerrit will be lost.
 
-The ``patchset-created`` and ``ref-updated`` events will be deduplicated, that is, if multiple events related to the same revision are received, only the first will be acted upon.
-This allows ``GerritChangeSource`` to be used together with :bb:chsrc:`GerritEventLogPoller`.
+.. note::
+
+    The :bb:chsrc:`GerritChangeSource` requires either the ``txrequest`` or the ``treq`` package for
+    using the HTTP API.
 
 The :bb:chsrc:`GerritChangeSource` accepts the following arguments:
 
@@ -1297,6 +1312,24 @@ The :bb:chsrc:`GerritChangeSource` accepts the following arguments:
     If the server does not respond at least ``ssh_server_alive_count_max`` times, a reconnection is forced.
     This helps to avoid stuck connections in case network link is severed without notification in the TCP layer.
     Specifying ``None`` will omit the option from the ssh client command line.
+
+``http_url``
+    (optional) HTTP URL to use when fetching events from the Gerrit internal database. This is used
+    to fill in events that have occurred when Buildbot was not connected to the SSH API.
+    If the URL of the events-log endpoint for your server is
+    ``https://example.com/a/plugins/events-log/events/`` then the ``http_url`` is
+    ``https://example.com``.
+
+``http_auth``
+    (optional) authentication credentials for events-log plugin.
+    If Gerrit is configured with ``BasicAuth``, then it shall be ``('login', 'password')``.
+    If Gerrit is configured with ``DigestAuth``, then it shall be
+    ``requests.auth.HTTPDigestAuth('login', 'password')`` from the requests module.
+    However, note that usage of ``requests.auth.HTTPDigestAuth`` is incompatible with ``treq``.
+
+``http_poll_interval``
+    (optional) frequency to poll the HTTP API when events are not being received through the SSH
+    connection. The default is 30 seconds.
 
 ``debug``
     Print Gerrit event in the log (default `False`).
@@ -1443,14 +1476,8 @@ GerritEventLogPoller
 
 .. py:class:: buildbot.changes.gerritchangesource.GerritEventLogPoller
 
-The :bb:chsrc:`GerritEventLogPoller` class is similar to :bb:chsrc:`GerritChangeSource` but connects to the Gerrit server by its HTTP interface and uses the events-log_ plugin.
-
-Note that the decision of whether to use :bb:chsrc:`GerritEventLogPoller` and :bb:chsrc:`GerritChangeSource` will depend on your needs. The trade off is:
-
-1. :bb:chsrc:`GerritChangeSource` is low-overhead and reacts instantaneously to events, but a broken connection to Gerrit will lead to missed changes
-2. :bb:chsrc:`GerritEventLogPoller` is subject to polling overhead and reacts only at it's polling rate, but is robust to a broken connection to Gerrit and missed changes will be discovered when a connection is restored.
-
-You can use both at the same time to get the advantages of each. They will coordinate through the database to avoid duplicate changes generated for buildbot.
+The :bb:chsrc:`GerritEventLogPoller` class is similar to :bb:chsrc:`GerritChangeSource` and
+connects to the Gerrit server only by its HTTP interface and uses the events-log_ plugin.
 
 .. note::
 

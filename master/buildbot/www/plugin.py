@@ -24,11 +24,10 @@ if sys.version_info[:2] >= (3, 9):
     # https://docs.python.org/3/library/importlib.resources.html
     import importlib.resources as importlib_resources
 else:
-    import importlib_resources
+    import importlib_resources  # type: ignore[import-not-found]
 
 
 class Application:
-
     def __init__(self, package_name, description, ui=True):
         self.description = description
         self.version = importlib_resources.files(package_name).joinpath("VERSION")
@@ -44,6 +43,8 @@ class Application:
         self.config = config
 
     def __repr__(self):
-        return ("www.plugin.Application(version=%(version)s, "
-                "description=%(description)s, "
-                "static_dir=%(static_dir)s)") % self.__dict__
+        return (
+            "www.plugin.Application(version={version}, "
+            "description={description}, "
+            "static_dir={static_dir})"
+        ).format(**self.__dict__)

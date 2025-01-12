@@ -231,7 +231,6 @@ In ``master/buildbot/data/pubs.py``, create a subclass of :py:class:`ResourceTyp
     class Pub(base.ResourceType):
         name = "pub"
         endpoints = []
-        keyFields = ['pubid']
 
         class EntityType(types.Entity):
             pubid = types.Integer()
@@ -239,7 +238,7 @@ In ``master/buildbot/data/pubs.py``, create a subclass of :py:class:`ResourceTyp
             num_taps = types.Integer()
             closes_at = types.Integer()
 
-        entityType = EntityType(name, 'Pub')
+        entityType = EntityType(name)
 
 .. py:class:: ResourceType
 
@@ -369,22 +368,6 @@ See that module's description for details.
                     "raw": "raw data to be sent to the http client",
                     "mime-type": "<mime-type>"
                 }
-
-    .. py:attribute:: isCollection
-
-        :type: boolean
-
-        If true, then this endpoint returns collections of resources.
-
-        This attribute is deprecated, use ``kind`` attribute instead.
-
-    .. py:attribute:: isRaw
-
-        :type: boolean
-
-        If true, then this endpoint returns a raw resource.
-
-        This attribute is deprecated, use ``kind`` attribute instead.
 
     .. py:method:: get(options, resultSpec, kwargs)
 
@@ -584,7 +567,7 @@ Entity Type
     Then instantiate the class with the resource type name.
     The second argument is used for GraphQl endpoints::
 
-        entityType = EntityType(name, 'MyStuff')
+        entityType = EntityType(name)
 
     To embed another entity type, reference its entityType class attribute::
 

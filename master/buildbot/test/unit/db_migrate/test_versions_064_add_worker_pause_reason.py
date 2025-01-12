@@ -14,7 +14,6 @@
 # Copyright Buildbot Team Members
 
 import sqlalchemy as sa
-
 from twisted.trial import unittest
 
 from buildbot.db.types.json import JsonObject
@@ -23,34 +22,37 @@ from buildbot.util import sautils
 
 
 class Migration(migration.MigrateTestMixin, unittest.TestCase):
-
     def setUp(self):
         return self.setUpMigrateTest()
-
-    def tearDown(self):
-        return self.tearDownMigrateTest()
 
     def create_tables_thd(self, conn):
         metadata = sa.MetaData()
         metadata.bind = conn
 
         workers = sautils.Table(
-            "workers", metadata,
+            "workers",
+            metadata,
             sa.Column("id", sa.Integer, primary_key=True),
             sa.Column("name", sa.String(50), nullable=False),
             sa.Column("info", JsonObject, nullable=False),
             sa.Column("paused", sa.SmallInteger, nullable=False, server_default="0"),
             sa.Column("graceful", sa.SmallInteger, nullable=False, server_default="0"),
         )
-        workers.create()
+        workers.create(bind=conn)
 
-        conn.execute(workers.insert(), [{
-            "id": 4,
-            "name": "worker1",
-            "info": "{\"key\": \"value\"}",
-            "paused": 0,
-            "graceful": 0,
-        }])
+        conn.execute(
+            workers.insert(),
+            [
+                {
+                    "id": 4,
+                    "name": "worker1",
+                    "info": "{\"key\": \"value\"}",
+                    "paused": 0,
+                    "graceful": 0,
+                }
+            ],
+        )
+        conn.commit()
 
     def test_update(self):
         def setup_thd(conn):
@@ -60,13 +62,13 @@ class Migration(migration.MigrateTestMixin, unittest.TestCase):
             metadata = sa.MetaData()
             metadata.bind = conn
 
-            workers = sautils.Table('workers', metadata, autoload=True)
+            workers = sautils.Table('workers', metadata, autoload_with=conn)
             self.assertIsInstance(workers.c.pause_reason.type, sa.Text)
 
-            q = sa.select([
+            q = sa.select(
                 workers.c.name,
                 workers.c.pause_reason,
-            ])
+            )
 
             num_rows = 0
             for row in conn.execute(q):

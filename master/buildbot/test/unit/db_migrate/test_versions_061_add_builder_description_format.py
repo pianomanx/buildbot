@@ -16,7 +16,6 @@
 import hashlib
 
 import sqlalchemy as sa
-
 from twisted.trial import unittest
 
 from buildbot.test.util import migration
@@ -24,34 +23,37 @@ from buildbot.util import sautils
 
 
 class Migration(migration.MigrateTestMixin, unittest.TestCase):
-
     def setUp(self):
         return self.setUpMigrateTest()
-
-    def tearDown(self):
-        return self.tearDownMigrateTest()
 
     def create_tables_thd(self, conn):
         metadata = sa.MetaData()
         metadata.bind = conn
 
         builders = sautils.Table(
-            'builders', metadata,
+            'builders',
+            metadata,
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text, nullable=False),
             sa.Column('description', sa.Text, nullable=True),
             sa.Column('projectid', sa.Integer, nullable=True),
             sa.Column('name_hash', sa.String(40), nullable=False),
         )
-        builders.create()
+        builders.create(bind=conn)
 
-        conn.execute(builders.insert(), [{
-            "id": 3,
-            "name": "foo",
-            "description": "foo_description",
-            "projectid": None,
-            "name_hash": hashlib.sha1(b'foo').hexdigest()
-        }])
+        conn.execute(
+            builders.insert(),
+            [
+                {
+                    "id": 3,
+                    "name": "foo",
+                    "description": "foo_description",
+                    "projectid": None,
+                    "name_hash": hashlib.sha1(b'foo').hexdigest(),
+                }
+            ],
+        )
+        conn.commit()
 
     def test_update(self):
         def setup_thd(conn):
@@ -61,15 +63,15 @@ class Migration(migration.MigrateTestMixin, unittest.TestCase):
             metadata = sa.MetaData()
             metadata.bind = conn
 
-            builders = sautils.Table('builders', metadata, autoload=True)
+            builders = sautils.Table('builders', metadata, autoload_with=conn)
             self.assertIsInstance(builders.c.description_format.type, sa.Text)
             self.assertIsInstance(builders.c.description_html.type, sa.Text)
 
-            q = sa.select([
+            q = sa.select(
                 builders.c.name,
                 builders.c.description_format,
-                builders.c.description_html
-            ])
+                builders.c.description_html,
+            )
 
             num_rows = 0
             for row in conn.execute(q):

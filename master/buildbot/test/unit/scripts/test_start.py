@@ -18,10 +18,8 @@ import sys
 import time
 from unittest import mock
 
-import twisted
 from twisted.internet import defer
 from twisted.internet.utils import getProcessOutputAndValue
-from twisted.python import versions
 from twisted.trial import unittest
 
 from buildbot.scripts import start
@@ -57,19 +55,15 @@ app.setServiceParent(application)
 
 
 class TestStart(misc.StdoutAssertionsMixin, dirs.DirsMixin, unittest.TestCase):
-
     def setUp(self):
         # On slower machines with high CPU oversubscription this test may take longer to run than
         # the default timeout.
         self.timeout = 20
 
         self.setUpDirs('basedir')
-        with open(os.path.join('basedir', 'buildbot.tac'), 'wt', encoding='utf-8') as f:
+        with open(os.path.join('basedir', 'buildbot.tac'), "w", encoding='utf-8') as f:
             f.write(fake_master_tac)
         self.setUpStdoutAssertions()
-
-    def tearDown(self):
-        self.tearDownDirs()
 
     # tests
 
@@ -81,7 +75,7 @@ class TestStart(misc.StdoutAssertionsMixin, dirs.DirsMixin, unittest.TestCase):
         args = [
             '-c',
             'from buildbot.scripts.start import start; import sys; '
-            f'sys.exit(start({repr(mkconfig(**config))}))',
+            f'sys.exit(start({mkconfig(**config)!r}))',
         ]
         env = os.environ.copy()
         env['PYTHONPATH'] = os.pathsep.join(sys.path)
@@ -146,9 +140,6 @@ class TestStart(misc.StdoutAssertionsMixin, dirs.DirsMixin, unittest.TestCase):
             pidfile = os.path.join('basedir', 'twistd.pid')
             while os.path.exists(pidfile):
                 time.sleep(0.01)
-
-    if twisted.version <= versions.Version('twisted', 9, 0, 0):
-        test_start.skip = test_start_quiet.skip = "Skipping due to suprious PotentialZombieWarning."
 
     # the remainder of this script does obscene things:
     #  - forks

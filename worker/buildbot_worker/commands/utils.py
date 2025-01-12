@@ -13,6 +13,8 @@
 #
 # Copyright Buildbot Team Members
 
+from __future__ import annotations
+
 import os
 
 from twisted.python import log
@@ -23,7 +25,7 @@ from twisted.python.procutils import which
 def getCommand(name):
     possibles = which(name)
     if not possibles:
-        raise RuntimeError("Couldn't find executable for '{0}'".format(name))
+        raise RuntimeError(f"Couldn't find executable for '{name}'")
     #
     # Under windows, if there is more than one executable "thing"
     # that matches (e.g. *.bat, *.cmd and *.exe), we not just use
@@ -42,10 +44,13 @@ def getCommand(name):
 
 # this just keeps pyflakes happy on non-Windows systems
 if runtime.platformType != 'win32':
-    WindowsError = RuntimeError
+    WindowsError: type | None = RuntimeError
+else:
+    WindowsError = None
 
 
 if runtime.platformType == 'win32':  # pragma: no cover
+
     def rmdirRecursive(dir):
         """This is a replacement for shutil.rmtree that works better under
         windows. Thanks to Bear at the OSAF for the code."""
@@ -72,8 +77,9 @@ if runtime.platformType == 'win32':  # pragma: no cover
         try:
             list = os.listdir(dir)
         except WindowsError as e:
-            msg = ("rmdirRecursive: unable to listdir {0} ({1}). Trying to "
-                   "remove like a dir".format(dir, e.strerror.decode('mbcs')))
+            msg = "rmdirRecursive: unable to listdir {} ({}). Trying to remove like a dir".format(
+                dir, e.strerror.decode('mbcs')
+            )
             log.msg(msg.encode('utf-8'))
             os.rmdir(dir)
             return
@@ -98,7 +104,9 @@ if runtime.platformType == 'win32':  # pragma: no cover
                     os.chmod(full_name, 0o700)
                 os.remove(full_name)
         os.rmdir(dir)
+
 else:
     # use rmtree on POSIX
     import shutil
+
     rmdirRecursive = shutil.rmtree

@@ -15,7 +15,6 @@
 
 import json
 import re
-from unittest.case import SkipTest
 from unittest.mock import Mock
 
 from twisted.internet import defer
@@ -28,14 +27,10 @@ from buildbot.www import ws
 
 
 class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
+    @defer.inlineCallbacks
     def setUp(self):
-        self.setup_test_reactor(use_asyncio=True)
-        self.master = master = self.make_master(
-            url="h:/a/b/", wantMq=True, wantGraphql=True
-        )
-        self.skip_graphql = False
-        if not self.master.graphql.enabled:
-            self.skip_graphql = True
+        self.setup_test_reactor()
+        self.master = master = yield self.make_master(url="h:/a/b/", wantMq=True, wantGraphql=True)
         self.ws = ws.WsResource(master)
         self.proto = self.ws._factory.buildProtocol("me")
         self.proto.sendMessage = Mock(spec=self.proto.sendMessage)
@@ -60,8 +55,6 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         self.assertEqual(actual_json, expected_json)
 
     def do_onConnect(self, protocols):
-        self.proto.is_graphql = None
-
         class FakeRequest:
             pass
 
@@ -69,20 +62,9 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         r.protocols = protocols
         return self.proto.onConnect(r)
 
-    def test_onConnect(self):
-        self.assertEqual(self.do_onConnect([]), None)
-        self.assertEqual(self.do_onConnect(["foo", "graphql-websocket"]), None)
-        self.assertEqual(self.proto.is_graphql, None)  # undecided yet
-        self.assertEqual(self.do_onConnect(["graphql-ws"]), "graphql-ws")
-        self.assertEqual(self.proto.is_graphql, True)
-        self.assertEqual(self.do_onConnect(["foo", "graphql-ws"]), "graphql-ws")
-        self.assertEqual(self.proto.is_graphql, True)
-
     def test_ping(self):
         self.proto.onMessage(json.dumps({"cmd": 'ping', "_id": 1}), False)
-        self.assert_called_with_json(
-            self.proto.sendMessage, {"msg": "pong", "code": 200, "_id": 1}
-        )
+        self.assert_called_with_json(self.proto.sendMessage, {"msg": "pong", "code": 200, "_id": 1})
 
     def test_bad_cmd(self):
         self.proto.onMessage(json.dumps({"cmd": 'poing', "_id": 1}), False)
@@ -109,46 +91,6 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
             },
         )
 
-    def test_too_many_arguments_graphql(self):
-        self.proto.is_graphql = True
-        self.proto.onMessage(
-            json.dumps({"id": 1, "type": 'connection_init', "foo": 'bar'}), False
-        )
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "id": None,
-                "message": re.compile('.*Invalid method argument.*'),
-                "type": "error",
-            },
-        )
-
-    def test_no_type_while_graphql(self):
-        self.proto.is_graphql = True
-        self.proto.onMessage(json.dumps({"_id": 1, "cmd": 'ping'}), False)
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "id": None,
-                "message": "missing 'type' in websocket frame when already started using "
-                "graphql",
-                "type": "error",
-            },
-        )
-
-    def test_type_while_not_graphql(self):
-        self.proto.is_graphql = False
-        self.proto.onMessage(json.dumps({"_id": 1, "type": 'ping'}), False)
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "_id": None,
-                "error": "using 'type' in websocket frame when "
-                "already started using buildbot protocol",
-                "code": 400,
-            },
-        )
-
     def test_no_id(self):
         self.proto.onMessage(json.dumps({"cmd": 'ping'}), False)
         self.assert_called_with_json(
@@ -164,9 +106,7 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         self.proto.onMessage(
             json.dumps({"cmd": 'startConsuming', "path": 'builds/*/*', "_id": 1}), False
         )
-        self.assert_called_with_json(
-            self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 1}
-        )
+        self.assert_called_with_json(self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 1})
         self.master.mq.verifyMessages = False
         self.master.mq.callConsumer(("builds", "1", "new"), {"buildid": 1})
         self.assert_called_with_json(
@@ -174,9 +114,7 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         )
 
     def test_startConsumingBadPath(self):
-        self.proto.onMessage(
-            json.dumps({"cmd": 'startConsuming', "path": {}, "_id": 1}), False
-        )
+        self.proto.onMessage(json.dumps({"cmd": 'startConsuming', "path": {}, "_id": 1}), False)
         self.assert_called_with_json(
             self.proto.sendMessage,
             {"_id": 1, "code": 400, "error": "invalid path format '{}'"},
@@ -195,109 +133,8 @@ class WsResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         self.proto.onMessage(
             json.dumps({"cmd": 'startConsuming', "path": 'builds/*/*', "_id": 1}), False
         )
-        self.assert_called_with_json(
-            self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 1}
-        )
+        self.assert_called_with_json(self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 1})
         self.proto.onMessage(
             json.dumps({"cmd": 'stopConsuming', "path": 'builds/*/*', "_id": 2}), False
         )
-        self.assert_called_with_json(
-            self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 2}
-        )
-
-    # graphql
-    def test_connection_init(self):
-        self.proto.onMessage(json.dumps({"type": 'connection_init'}), False)
-        self.assert_called_with_json(self.proto.sendMessage, {"type": "connection_ack"})
-
-    @defer.inlineCallbacks
-    def test_start_stop_graphql(self):
-        if self.skip_graphql:
-            raise SkipTest("graphql-core not installed")
-        yield self.proto.onMessage(
-            json.dumps(
-                {
-                    "type": "start",
-                    "payload": {
-                        "query": "{builders{name}}"
-                    },
-                    "id": 1
-                }
-            ),
-            False,
-        )
-        self.assertEqual(len(self.proto.graphql_subs), 1)
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "payload": {
-                    "data": {"builders": []},
-                    "errors": None,
-                },
-                "type": "data",
-                "id": 1,
-            },
-        )
-        self.proto.sendMessage.reset_mock()
-        yield self.proto.graphql_dispatch_events.function()
-        self.proto.sendMessage.assert_not_called()
-
-        # auto create a builder in the db
-        yield self.master.db.builders.findBuilderId("builder1")
-        self.master.mq.callConsumer(
-            ("builders", "1", "started"),
-            {"name": "builder1", "masterid": 1, "builderid": 1},
-        )
-        self.assertNotEqual(self.proto.graphql_dispatch_events.phase, 0)
-        # then force the call anyway to speed up the test
-        yield self.proto.graphql_dispatch_events.function()
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "payload": {
-                    "data": {"builders": [{"name": "builder1"}]},
-                    "errors": None,
-                },
-                "type": "data",
-                "id": 1,
-            },
-        )
-
-        yield self.proto.onMessage(json.dumps({"type": 'stop', "id": 1}), False)
-
-        self.assertEqual(len(self.proto.graphql_subs), 0)
-
-    @defer.inlineCallbacks
-    def test_start_graphql_bad_query(self):
-        if self.skip_graphql:
-            raise SkipTest("graphql-core not installed")
-        yield self.proto.onMessage(
-            json.dumps(
-                {
-                    "type": "start",
-                    "payload": {
-                        "query": "{builders{not_existing}}"
-                    },
-                    "id": 1
-                }
-            ),
-            False,
-        )
-        self.assert_called_with_json(
-            self.proto.sendMessage,
-            {
-                "payload":
-                {
-                    "data": None,
-                    "errors": [
-                        {
-                            "locations": [{"column": 11, "line": 1}],
-                            "message": "Cannot query field 'not_existing' on type 'Builder'.",
-                        }
-                    ],
-                },
-                "id": 1,
-                "type": "data",
-            },
-        )
-        self.assertEqual(len(self.proto.graphql_subs), 0)
+        self.assert_called_with_json(self.proto.sendMessage, {"msg": "OK", "code": 200, "_id": 2})
